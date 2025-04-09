@@ -30,19 +30,11 @@ const LoginPage = () => {
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="relative flex items-center">
-                <img 
-                  src="/lovable-uploads/cdebb1c4-99a9-4a08-9fe3-47a612c502ff.png" 
-                  alt="Psicome" 
-                  className="h-10 w-10"
-                />
-                <span className="mx-2">×</span>
-                <img 
-                  src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
-                  alt="Ouquo" 
-                  className="h-10 w-10" 
-                />
-              </div>
+              <img 
+                src="/lovable-uploads/cdebb1c4-99a9-4a08-9fe3-47a612c502ff.png" 
+                alt="Psicome" 
+                className="h-12 w-12"
+              />
             </div>
             <h2 className="text-3xl font-bold">Welcome back</h2>
             <p className="mt-2 text-gray-600">Sign in to your account to continue</p>
