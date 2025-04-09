@@ -1,104 +1,130 @@
 
 import React, { useState, useEffect } from 'react';
-import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users, Settings } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { useWebRTC } from '@/hooks/useWebRTC';
+import { signaling } from '@/utils/signaling';
 
 const VideoCall = () => {
-  const { toast } = useToast();
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  // Room and user information (in a real app, these would come from auth and routing)
+  const roomId = 'demo-room';
+  const userId = 'patient';
+  const isDoctor = false; // This would normally be determined by user role
+
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [participants, setParticipants] = useState<string[]>([]);
+  
+  // Initialize WebRTC hook
+  const { 
+    state, 
+    refs: { localVideoRef, remoteVideoRef },
+    actions: {
+      initializeLocalStream,
+      initializeCall,
+      answerCall,
+      completeCall,
+      toggleMic,
+      toggleVideo,
+      endCall
+    }
+  } = useWebRTC();
 
+  // Initialize media and join room
   useEffect(() => {
-    // Request access to user's camera and microphone
-    const startMedia = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        
-        setLocalStream(stream);
-        
-        // Display the local video stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        
-        toast({
-          title: "Camera and microphone connected",
-          description: "You can now start your video call.",
-        });
-      } catch (err) {
-        console.error("Error accessing media devices:", err);
-        toast({
-          title: "Media access error",
-          description: "Unable to access your camera or microphone. Please check your permissions.",
-          variant: "destructive",
+    const setupCall = async () => {
+      await initializeLocalStream();
+      
+      // Join the signaling room
+      signaling.joinRoom(roomId, userId);
+      
+      // Update participants
+      setParticipants(signaling.getRoomUsers(roomId));
+      
+      // If doctor, initialize call when another user joins
+      if (isDoctor) {
+        signaling.on('userJoined', async ({ roomId: room }) => {
+          if (room === roomId && !state.peerConnection) {
+            const result = await initializeCall();
+            if (result) {
+              // Send offer through signaling
+              signaling.sendOffer(roomId, userId, result.offer);
+            }
+          }
         });
       }
     };
     
-    startMedia();
+    setupCall();
     
-    // Cleanup function to stop all media tracks when component unmounts
+    // Clean up when component unmounts
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-      }
+      signaling.leaveRoom(roomId, userId);
+      endCall();
     };
   }, []);
-
-  // Toggle microphone
-  const toggleMic = () => {
-    if (localStream) {
-      const audioTracks = localStream.getAudioTracks();
-      audioTracks.forEach(track => {
-        track.enabled = !track.enabled;
-      });
-      setIsMicOn(audioTracks[0]?.enabled || false);
-      
-      toast({
-        title: audioTracks[0]?.enabled ? "Microphone turned on" : "Microphone turned off",
-        duration: 1500,
-      });
-    }
-  };
-
-  // Toggle video
-  const toggleVideo = () => {
-    if (localStream) {
-      const videoTracks = localStream.getVideoTracks();
-      videoTracks.forEach(track => {
-        track.enabled = !track.enabled;
-      });
-      setIsVideoOn(videoTracks[0]?.enabled || false);
-      
-      toast({
-        title: videoTracks[0]?.enabled ? "Camera turned on" : "Camera turned off",
-        duration: 1500,
-      });
-    }
-  };
-
-  // End the call
-  const endCall = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-    
-    toast({
-      title: "Call ended",
-      description: "You have disconnected from the video call.",
+  
+  // Handle signaling events
+  useEffect(() => {
+    // Handle incoming offers
+    signaling.on('offer', async ({ roomId: room, offer }) => {
+      if (room === roomId && !isDoctor) {
+        const result = await answerCall(offer);
+        if (result) {
+          // Send answer back through signaling
+          signaling.sendAnswer(roomId, userId, result.answer);
+          setIsConnected(true);
+        }
+      }
     });
     
-    // In a real application, you would redirect to a post-call page
-    // or show a call summary screen
+    // Handle incoming answers
+    signaling.on('answer', async ({ roomId: room, answer }) => {
+      if (room === roomId && isDoctor) {
+        const success = await completeCall(answer);
+        if (success) {
+          setIsConnected(true);
+        }
+      }
+    });
+    
+    // Handle users joining/leaving
+    signaling.on('userJoined', ({ roomId: room }) => {
+      if (room === roomId) {
+        setParticipants(signaling.getRoomUsers(roomId));
+      }
+    });
+    
+    signaling.on('userLeft', ({ roomId: room }) => {
+      if (room === roomId) {
+        setParticipants(signaling.getRoomUsers(roomId));
+        if (signaling.getRoomUsers(roomId).length <= 1) {
+          setIsConnected(false);
+        }
+      }
+    });
+  }, [answerCall, completeCall, isDoctor]);
+
+  // Handle microphone toggle
+  const handleToggleMic = () => {
+    const newState = toggleMic();
+    setIsMicOn(newState);
+  };
+
+  // Handle video toggle
+  const handleToggleVideo = () => {
+    const newState = toggleVideo();
+    setIsVideoOn(newState);
+  };
+
+  // Handle call end
+  const handleEndCall = () => {
+    endCall();
+    signaling.leaveRoom(roomId, userId);
+    setIsConnected(false);
   };
 
   return (
@@ -116,20 +142,34 @@ const VideoCall = () => {
             {/* Main video area */}
             <div className="lg:col-span-3">
               <div className="bg-black rounded-xl overflow-hidden shadow-xl aspect-video relative">
-                {/* Local video stream */}
+                {/* Remote video stream (primary when connected) */}
                 <video
-                  ref={videoRef}
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className={`w-full h-full object-cover ${isConnected ? 'block' : 'hidden'}`}
+                />
+                
+                {/* Local video stream (primary when not connected) */}
+                <video
+                  ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover ${isConnected ? 'hidden' : 'block'}`}
                 />
                 
+                {/* Video disabled indicator */}
                 {!isVideoOn && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                     <p className="text-white text-lg">Camera is turned off</p>
                   </div>
                 )}
+                
+                {/* Status indicator */}
+                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
+                  {isConnected ? 'Connected' : 'Waiting for connection...'}
+                </div>
                 
                 {/* Video controls */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center space-x-4">
@@ -137,7 +177,7 @@ const VideoCall = () => {
                     variant="outline" 
                     size="icon" 
                     className="rounded-full bg-white/10 border-white/20 hover:bg-white/20 text-white" 
-                    onClick={toggleMic}
+                    onClick={handleToggleMic}
                   >
                     {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                   </Button>
@@ -146,7 +186,7 @@ const VideoCall = () => {
                     variant="outline" 
                     size="icon" 
                     className="rounded-full bg-white/10 border-white/20 hover:bg-white/20 text-white"
-                    onClick={toggleVideo}
+                    onClick={handleToggleVideo}
                   >
                     {isVideoOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                   </Button>
@@ -155,17 +195,17 @@ const VideoCall = () => {
                     variant="destructive" 
                     size="icon" 
                     className="rounded-full"
-                    onClick={endCall}
+                    onClick={handleEndCall}
                   >
                     <PhoneOff className="h-5 w-5" />
                   </Button>
                 </div>
                 
-                {/* Self view (picture-in-picture) */}
-                {isVideoOn && (
+                {/* Self view (picture-in-picture) - only show when connected */}
+                {isConnected && isVideoOn && (
                   <div className="absolute top-4 right-4 w-40 h-32 bg-gray-800 rounded-lg overflow-hidden border border-white/20 shadow-xl">
                     <video
-                      ref={videoRef}
+                      ref={localVideoRef}
                       autoPlay
                       playsInline
                       muted
@@ -184,7 +224,7 @@ const VideoCall = () => {
                 
                 <Button variant="outline" className="flex items-center justify-center gap-2">
                   <Users className="h-4 w-4" />
-                  <span>Participants</span>
+                  <span>Participants ({participants.length})</span>
                 </Button>
                 
                 <Button variant="outline" className="flex items-center justify-center gap-2">
@@ -228,12 +268,30 @@ const VideoCall = () => {
                   </div>
                   
                   <div className="pt-4 border-t">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Call Quality</h3>
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">Connection Status</h3>
                     <div className="flex items-center gap-2">
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+                        <div 
+                          className={`h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} 
+                          style={{ width: isConnected ? '100%' : '50%' }}
+                        ></div>
                       </div>
-                      <span className="text-sm text-gray-600">Good</span>
+                      <span className="text-sm text-gray-600">{isConnected ? 'Connected' : 'Waiting'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">Participants</h3>
+                    <div className="space-y-2">
+                      {participants.map((participant, index) => (
+                        <div key={index} className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full ${participant === 'doctor' ? 'bg-blue-500' : 'bg-green-500'} mr-2`}></div>
+                          <p className="text-sm">{participant === 'doctor' ? 'Dr. Sarah Johnson' : 'John Doe'}</p>
+                        </div>
+                      ))}
+                      {participants.length === 0 && (
+                        <p className="text-sm text-gray-500">No participants yet</p>
+                      )}
                     </div>
                   </div>
                 </div>
