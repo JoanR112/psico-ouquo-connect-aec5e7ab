@@ -16,7 +16,7 @@ const Services = () => {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl font-bold mb-4">Our Services</h1>
           <p className="text-lg text-gray-700 max-w-3xl mx-auto">
-            Discover how PsicoOuquo Connect is revolutionizing online therapy sessions with cutting-edge video technology.
+            Discover how Psicome Connect is revolutionizing online therapy sessions with cutting-edge video technology.
           </p>
         </div>
       </section>
@@ -55,7 +55,7 @@ const Services = () => {
               </div>
             </div>
             <div className="relative">
-              <div className="absolute -inset-1 bg-ouquo-gradient rounded-2xl blur opacity-20"></div>
+              <div className="absolute -inset-1 bg-blue-500/20 rounded-2xl blur opacity-20"></div>
               <div className="video-container">
                 <div className="absolute inset-0 flex items-center justify-center p-6">
                   <div className="text-white">
@@ -303,7 +303,7 @@ const Services = () => {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-medium mb-2">What devices can I use for video sessions?</h3>
               <p className="text-gray-600">
-                PsicoOuquo Connect works on most modern devices including desktops, laptops, tablets, and smartphones. We support the latest versions of Chrome, Firefox, Safari, and Edge browsers, as well as our dedicated mobile apps for iOS and Android.
+                Psicome Connect works on most modern devices including desktops, laptops, tablets, and smartphones. We support the latest versions of Chrome, Firefox, Safari, and Edge browsers, as well as our dedicated mobile apps for iOS and Android.
               </p>
             </div>
             
@@ -336,7 +336,7 @@ const Services = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Practice?</h2>
           <p className="text-white/80 max-w-2xl mx-auto mb-8">
-            Join thousands of mental health professionals already using PsicoOuquo Connect to provide exceptional care to their clients.
+            Join thousands of mental health professionals already using Psicome Connect to provide exceptional care to their clients.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link to="/login">

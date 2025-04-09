@@ -85,10 +85,6 @@
   }
 }
 
-.ouquo-gradient-text {
-  @apply bg-clip-text text-transparent bg-ouquo-gradient animate-gradient-flow bg-[length:300%_auto];
-}
-
 .video-container {
   @apply relative bg-black rounded-lg overflow-hidden shadow-xl;
   aspect-ratio: 16 / 9;

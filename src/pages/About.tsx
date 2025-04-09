@@ -11,9 +11,9 @@ const About = () => {
       {/* Header */}
       <section className="bg-gradient-to-r from-blue-50 via-white to-blue-50 py-12">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold mb-4">About The Collaboration</h1>
+          <h1 className="text-4xl font-bold mb-4">About Psicome Connect</h1>
           <p className="text-lg text-gray-700 max-w-3xl mx-auto">
-            Learn more about how Psicome and Ouquo joined forces to create a secure, professional video calling platform for mental health services.
+            Learn more about how Psicome created a secure, professional video calling platform for mental health services.
           </p>
         </div>
       </section>
@@ -24,55 +24,35 @@ const About = () => {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold mb-6">Our Story</h2>
             <p className="text-gray-700 mb-6 text-lg">
-              The collaboration between Psicome and Ouquo began with a shared vision: to create a video calling platform specifically designed for mental health professionals and their clients. Both companies recognized that general-purpose video platforms weren't meeting the unique needs of therapeutic relationships.
+              Psicome Connect began with a vision: to create a video calling platform specifically designed for mental health professionals and their clients. We recognized that general-purpose video platforms weren't meeting the unique needs of therapeutic relationships.
             </p>
             <p className="text-gray-700 mb-6 text-lg">
-              Psicome, with its deep understanding of mental health services and therapeutic relationships, partnered with Ouquo, renowned for its secure, high-quality video technology. Together, they developed PsicoOuquo Connect - a platform that combines clinical expertise with technological innovation.
+              With our deep understanding of mental health services and therapeutic relationships, we developed Psicome Connect - a platform that combines clinical expertise with technological innovation.
             </p>
             <p className="text-gray-700 text-lg">
-              Today, PsicoOuquo Connect serves thousands of mental health professionals worldwide, enabling them to deliver effective therapy remotely while maintaining the personal connection essential to successful treatment.
+              Today, Psicome Connect serves thousands of mental health professionals worldwide, enabling them to deliver effective therapy remotely while maintaining the personal connection essential to successful treatment.
             </p>
           </div>
         </div>
       </section>
       
-      {/* Partners Section */}
+      {/* Company Section */}
       <section className="bg-white py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center">Meet the Partners</h2>
+          <h2 className="text-3xl font-bold mb-12 text-center">About Psicome</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
-            {/* Psicome */}
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-blue-50 p-8 rounded-full mb-6">
-                <img 
-                  src="/lovable-uploads/cdebb1c4-99a9-4a08-9fe3-47a612c502ff.png" 
-                  alt="Psicome" 
-                  className="h-32 w-32"
-                />
-              </div>
-              <h3 className="text-2xl font-bold text-psicoblue mb-3">Psicome</h3>
-              <p className="text-gray-700">
-                Psicome is a leading mental health platform that connects therapists with clients seeking help. With a focus on accessibility and quality care, Psicome has revolutionized how people access mental health services through its innovative matching system and secure client management tools.
-              </p>
+          <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+            <div className="bg-blue-50 p-8 rounded-full mb-6">
+              <img 
+                src="/lovable-uploads/cdebb1c4-99a9-4a08-9fe3-47a612c502ff.png" 
+                alt="Psicome" 
+                className="h-32 w-32"
+              />
             </div>
-            
-            {/* Ouquo */}
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-black p-8 rounded-full mb-6">
-                <img 
-                  src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
-                  alt="Ouquo" 
-                  className="h-32 w-32"
-                />
-              </div>
-              <h3 className="text-2xl font-bold mb-3">
-                <span className="ouquo-gradient-text">Ouquo</span>
-              </h3>
-              <p className="text-gray-700">
-                Ouquo develops state-of-the-art video communication technology with a focus on security, reliability, and quality. Their solutions are used in various professional fields where privacy and clear communication are paramount, including healthcare, legal services, and education.
-              </p>
-            </div>
+            <h3 className="text-2xl font-bold text-psicoblue mb-3">Psicome</h3>
+            <p className="text-gray-700 max-w-2xl mx-auto">
+              Psicome is a leading mental health platform that connects therapists with clients seeking help. With a focus on accessibility and quality care, Psicome has revolutionized how people access mental health services through its innovative matching system, secure client management tools, and now with Psicome Connect, high-quality video therapy.
+            </p>
           </div>
         </div>
       </section>
@@ -128,22 +108,22 @@ const About = () => {
             {/* Team Member 2 */}
             <div className="text-center">
               <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Michael Chen</h3>
-              <p className="text-sm text-gray-600">CEO, Ouquo</p>
+              <h3 className="font-bold">Dr. Sarah Johnson</h3>
+              <p className="text-sm text-gray-600">Clinical Director</p>
             </div>
             
             {/* Team Member 3 */}
             <div className="text-center">
               <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Dr. Sarah Johnson</h3>
-              <p className="text-sm text-gray-600">Clinical Director</p>
+              <h3 className="font-bold">Robert Williams</h3>
+              <p className="text-sm text-gray-600">CTO</p>
             </div>
             
             {/* Team Member 4 */}
             <div className="text-center">
               <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Robert Williams</h3>
-              <p className="text-sm text-gray-600">CTO</p>
+              <h3 className="font-bold">Jennifer Chen</h3>
+              <p className="text-sm text-gray-600">Product Director</p>
             </div>
           </div>
         </div>

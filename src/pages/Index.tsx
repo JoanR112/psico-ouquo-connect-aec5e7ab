@@ -18,12 +18,10 @@ const Index = () => {
             <div className="md:w-1/2 mb-10 md:mb-0">
               <h1 className="text-4xl md:text-5xl font-bold mb-4">
                 Professional Video Therapy Sessions with{" "}
-                <span className="text-psicoblue">Psico</span>
-                <span className="ouquo-gradient-text">Ouquo</span>
-                <span>Connect</span>
+                <span className="text-psicoblue">Psicome Connect</span>
               </h1>
               <p className="text-lg text-gray-700 mb-8">
-                A collaboration between Ouquo and Psicome to bring secure, high-quality video call service for mental health professionals and their clients.
+                Secure, high-quality video call service for mental health professionals and their clients.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/login">
@@ -40,7 +38,7 @@ const Index = () => {
             </div>
             <div className="md:w-1/2 flex justify-center md:justify-end">
               <div className="relative">
-                <div className="absolute -inset-0.5 bg-ouquo-gradient rounded-2xl blur-sm opacity-30 animate-pulse-slow"></div>
+                <div className="absolute -inset-0.5 bg-blue-500/30 rounded-2xl blur-sm opacity-30 animate-pulse-slow"></div>
                 <div className="video-container w-full max-w-lg">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-white text-center">
@@ -56,13 +54,13 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Collaboration Section */}
+      {/* Platform Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">A Powerful Collaboration</h2>
+            <h2 className="text-3xl font-bold mb-4">The Complete Platform</h2>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              Combining Psicome's mental health expertise with Ouquo's cutting-edge video technology to create the best therapeutic experience.
+              Psicome Connect provides mental health professionals with all the tools they need to deliver effective therapy remotely.
             </p>
           </div>
           
@@ -80,24 +78,6 @@ const Index = () => {
                 The leading mental health platform connecting therapists with clients seeking professional help.
               </p>
             </div>
-            
-            <div className="text-3xl font-bold text-gray-400">×</div>
-            
-            <div className="text-center">
-              <div className="bg-gradient-to-br from-black to-gray-900 p-6 rounded-full inline-flex items-center justify-center mb-4">
-                <img 
-                  src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
-                  alt="Ouquo" 
-                  className="h-20 w-20"
-                />
-              </div>
-              <h3 className="text-xl font-bold mb-2">
-                <span className="ouquo-gradient-text">Ouquo Video</span>
-              </h3>
-              <p className="text-gray-600 max-w-xs mx-auto">
-                Developers of secure, high-quality video communication technology designed for professional settings.
-              </p>
-            </div>
           </div>
         </div>
       </section>
@@ -106,7 +86,7 @@ const Index = () => {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Why Choose PsicoOuquo Connect</h2>
+            <h2 className="text-3xl font-bold mb-4">Why Choose Psicome Connect</h2>
             <p className="text-gray-700 max-w-3xl mx-auto">
               Our service combines robust video technology with a user-friendly interface designed specifically for mental health consultations.
             </p>
@@ -159,7 +139,7 @@ const Index = () => {
             
             {/* Feature 5 */}
             <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4 bg-gradient-to-r from-blue-100 to-purple-100">
+              <div className="p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4 bg-gradient-to-r from-blue-100 to-blue-200">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-psicoblue" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 </svg>
@@ -172,7 +152,7 @@ const Index = () => {
             
             {/* Feature 6 */}
             <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4 bg-gradient-to-r from-blue-100 to-purple-100">
+              <div className="p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4 bg-gradient-to-r from-blue-100 to-blue-200">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-psicoblue" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -192,7 +172,7 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-white/80 max-w-2xl mx-auto mb-8">
-            Join thousands of therapists and clients already using PsicoOuquo Connect for their remote therapy sessions.
+            Join thousands of therapists and clients already using Psicome Connect for their remote therapy sessions.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link to="/login">

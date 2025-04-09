@@ -14,15 +14,9 @@ const Footer = () => {
                 alt="Psicome" 
                 className="h-8 w-8"
               />
-              <span className="mx-1">×</span>
-              <img 
-                src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
-                alt="Ouquo" 
-                className="h-8 w-8" 
-              />
             </div>
             <p className="text-gray-600 text-sm">
-              A collaboration between Ouquo and Psicome, bringing professional video calling to mental health services.
+              Providing professional video calling solutions for mental health services.
             </p>
           </div>
           
@@ -55,8 +49,8 @@ const Footer = () => {
           <div>
             <h3 className="font-medium text-gray-900 mb-4">Contact</h3>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li>Email: info@psicoouquo-connect.com</li>
-              <li>Support: support@psicoouquo-connect.com</li>
+              <li>Email: info@psicome-connect.com</li>
+              <li>Support: support@psicome-connect.com</li>
               <li>Privacy Policy</li>
               <li>Terms of Service</li>
             </ul>
@@ -65,7 +59,7 @@ const Footer = () => {
         
         <div className="border-t border-gray-200 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-500 text-sm">
-            © {new Date().getFullYear()} PsicoOuquo Connect. All rights reserved.
+            © {new Date().getFullYear()} Psicome Connect. All rights reserved.
           </p>
           <div className="mt-4 md:mt-0 flex space-x-4">
             <a href="#" className="text-gray-500 hover:text-psicoblue">

@@ -20,16 +20,9 @@ const Navbar = () => {
                 alt="Psicome" 
                 className="h-10 w-10"
               />
-              <span className="mx-2">×</span>
-              <img 
-                src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
-                alt="Ouquo" 
-                className="h-10 w-10" 
-              />
             </div>
             <span className="font-bold text-lg">
-              <span className="text-psicoblue">Psico</span>
-              <span className="ouquo-gradient-text">Ouquo</span>
+              <span className="text-psicoblue">Psicome</span>
               <span className="text-black">Connect</span>
             </span>
           </Link>
