@@ -51,7 +51,11 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-gray-600">
               <li>Email: info@psicome-connect.com</li>
               <li>Support: support@psicome-connect.com</li>
-              <li>Privacy Policy</li>
+              <li>
+                <Link to="/privacy-policy" className="text-gray-600 hover:text-psicoblue transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
               <li>Terms of Service</li>
             </ul>
           </div>
