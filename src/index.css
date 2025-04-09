@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -30,25 +31,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 217.2 91.2% 59.8%;
 
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -61,7 +46,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -98,4 +83,29 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.ouquo-gradient-text {
+  @apply bg-clip-text text-transparent bg-ouquo-gradient animate-gradient-flow bg-[length:300%_auto];
+}
+
+.video-container {
+  @apply relative bg-black rounded-lg overflow-hidden shadow-xl;
+  aspect-ratio: 16 / 9;
+}
+
+.video-controls {
+  @apply absolute bottom-0 left-0 w-full p-4 flex justify-center space-x-4 bg-gradient-to-t from-black/80 to-transparent;
+}
+
+.video-button {
+  @apply flex items-center justify-center w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white transition;
+}
+
+.glass-card {
+  @apply rounded-xl border border-white/10 bg-white/5 shadow-lg backdrop-blur-md p-6;
+}
+
+.glass-nav {
+  @apply bg-white/10 backdrop-blur-md border-b border-white/20;
 }
