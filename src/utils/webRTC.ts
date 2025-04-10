@@ -7,6 +7,7 @@ export interface PeerConnection {
 export interface WebRTCState {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  screenStream: MediaStream | null;
   offer: RTCSessionDescriptionInit | null;
   answer: RTCSessionDescriptionInit | null;
   peerConnection: RTCPeerConnection | null;
@@ -73,6 +74,46 @@ export const addTracksFromStream = (peerConnection: RTCPeerConnection, stream: M
   stream.getTracks().forEach(track => {
     peerConnection.addTrack(track, stream);
   });
+};
+
+// Replace tracks in peer connection
+export const replaceTracks = (peerConnection: RTCPeerConnection, newStream: MediaStream, oldStream: MediaStream): void => {
+  const senders = peerConnection.getSenders();
+  
+  newStream.getTracks().forEach(track => {
+    // Find the sender that corresponds to the same kind of track
+    const sender = senders.find(s => s.track && s.track.kind === track.kind);
+    if (sender) {
+      sender.replaceTrack(track);
+    }
+  });
+  
+  // Stop old tracks
+  oldStream.getTracks().forEach(track => {
+    if (track.kind === 'video') {
+      track.stop();
+    }
+  });
+};
+
+// Get screen sharing stream
+export const getScreenShareStream = async (): Promise<MediaStream> => {
+  return await navigator.mediaDevices.getDisplayMedia({
+    video: {
+      cursor: 'always',
+      displaySurface: 'monitor',
+    }
+  });
+};
+
+// Stop screen sharing
+export const stopScreenSharing = (stream: MediaStream): void => {
+  stream.getTracks().forEach(track => track.stop());
+};
+
+// Create data channel for chat
+export const createDataChannel = (peerConnection: RTCPeerConnection, label: string): RTCDataChannel => {
+  return peerConnection.createDataChannel(label);
 };
 
 // Clean up and close the peer connection

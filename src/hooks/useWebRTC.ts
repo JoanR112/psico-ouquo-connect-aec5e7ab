@@ -7,7 +7,11 @@ import {
   createOffer, 
   createAnswer, 
   addAnswer,
-  addTracksFromStream
+  addTracksFromStream,
+  getScreenShareStream,
+  stopScreenSharing,
+  replaceTracks,
+  createDataChannel
 } from '@/utils/webRTC';
 
 export const useWebRTC = () => {
@@ -15,11 +19,13 @@ export const useWebRTC = () => {
   const [state, setState] = useState<WebRTCState>({
     localStream: null,
     remoteStream: null,
+    screenStream: null,
     offer: null,
     answer: null,
     peerConnection: null,
   });
-
+  
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -56,7 +62,7 @@ export const useWebRTC = () => {
 
   // Initialize peer connection as the caller
   const initializeCall = useCallback(async () => {
-    if (!state.localStream) return;
+    if (!state.localStream) return null;
     
     try {
       const peerConnection = createPeerConnection();
@@ -67,11 +73,29 @@ export const useWebRTC = () => {
         remoteVideoRef.current.srcObject = remoteStream;
       }
       
+      // Create a data channel for chat
+      dataChannelRef.current = createDataChannel(peerConnection, 'chat');
+      
       // Listen for remote tracks
       peerConnection.ontrack = (event) => {
         event.streams[0].getTracks().forEach((track) => {
           remoteStream.addTrack(track);
         });
+      };
+      
+      // Listen for data channels
+      peerConnection.ondatachannel = (event) => {
+        const channel = event.channel;
+        channel.onmessage = (e) => {
+          console.log('Received message:', e.data);
+          // Handle incoming messages
+          try {
+            const message = JSON.parse(e.data);
+            // Here you would handle different message types
+          } catch (err) {
+            console.error('Error parsing message:', err);
+          }
+        };
       };
       
       // Add local tracks to peer connection
@@ -92,9 +116,6 @@ export const useWebRTC = () => {
         description: "Waiting for other participant to join...",
       });
       
-      // In a real app, you would send this offer to the other peer
-      console.log("Call offer created:", offer);
-      
       return { peerConnection, offer };
     } catch (err) {
       console.error("Error initializing call:", err);
@@ -109,7 +130,7 @@ export const useWebRTC = () => {
 
   // Answer an incoming call
   const answerCall = useCallback(async (incomingOffer: RTCSessionDescriptionInit) => {
-    if (!state.localStream) return;
+    if (!state.localStream) return null;
     
     try {
       const peerConnection = createPeerConnection();
@@ -125,6 +146,21 @@ export const useWebRTC = () => {
         event.streams[0].getTracks().forEach((track) => {
           remoteStream.addTrack(track);
         });
+      };
+      
+      // Listen for data channels
+      peerConnection.ondatachannel = (event) => {
+        dataChannelRef.current = event.channel;
+        dataChannelRef.current.onmessage = (e) => {
+          console.log('Received message:', e.data);
+          // Handle incoming messages
+          try {
+            const message = JSON.parse(e.data);
+            // Here you would handle different message types
+          } catch (err) {
+            console.error('Error parsing message:', err);
+          }
+        };
       };
       
       // Add local tracks to peer connection
@@ -144,9 +180,6 @@ export const useWebRTC = () => {
         title: "Call answered",
         description: "You've joined the video call.",
       });
-      
-      // In a real app, you would send this answer to the other peer
-      console.log("Call answer created:", answer);
       
       return { peerConnection, answer };
     } catch (err) {
@@ -181,6 +214,117 @@ export const useWebRTC = () => {
       return false;
     }
   }, [state.peerConnection, toast]);
+
+  // Start screen sharing
+  const startScreenShare = useCallback(async () => {
+    if (!state.peerConnection || !state.localStream) return false;
+    
+    try {
+      const screenStream = await getScreenShareStream();
+      
+      // Replace video track with screen sharing track
+      replaceTracks(state.peerConnection, screenStream, state.localStream);
+      
+      setState(prev => ({ ...prev, screenStream }));
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = screenStream;
+      }
+      
+      // Add event listener to detect when screen sharing stops
+      screenStream.getVideoTracks()[0].onended = () => {
+        stopScreenShare();
+      };
+      
+      toast({
+        title: "Screen sharing started",
+        description: "Your screen is now being shared.",
+      });
+      
+      return true;
+    } catch (err) {
+      console.error("Error starting screen share:", err);
+      toast({
+        title: "Screen sharing error",
+        description: "Failed to start screen sharing. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [state.peerConnection, state.localStream, toast]);
+
+  // Stop screen sharing
+  const stopScreenShare = useCallback(async () => {
+    if (!state.peerConnection || !state.localStream || !state.screenStream) return false;
+    
+    try {
+      // Stop all screen sharing tracks
+      stopScreenSharing(state.screenStream);
+      
+      // Re-initialize local camera stream
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: state.localStream.getAudioTracks().length > 0,
+      });
+      
+      // Replace screen sharing track with camera track
+      replaceTracks(state.peerConnection, newStream, state.screenStream);
+      
+      setState(prev => ({ 
+        ...prev, 
+        localStream: newStream, 
+        screenStream: null 
+      }));
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = newStream;
+      }
+      
+      toast({
+        title: "Screen sharing stopped",
+        description: "Returned to camera view.",
+      });
+      
+      return true;
+    } catch (err) {
+      console.error("Error stopping screen share:", err);
+      toast({
+        title: "Screen sharing error",
+        description: "Failed to stop screen sharing. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [state.peerConnection, state.localStream, state.screenStream, toast]);
+
+  // Send a chat message
+  const sendMessage = useCallback((message: string) => {
+    if (!dataChannelRef.current || dataChannelRef.current.readyState !== 'open') {
+      toast({
+        title: "Chat unavailable",
+        description: "Chat connection is not established.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    try {
+      dataChannelRef.current.send(JSON.stringify({
+        type: 'chat',
+        content: message,
+        timestamp: new Date().toISOString()
+      }));
+      return true;
+    } catch (err) {
+      console.error("Error sending message:", err);
+      toast({
+        title: "Message sending failed",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [toast]);
 
   // Toggle microphone
   const toggleMic = useCallback(() => {
@@ -225,6 +369,17 @@ export const useWebRTC = () => {
       state.localStream.getTracks().forEach(track => track.stop());
     }
     
+    // Stop screen sharing if active
+    if (state.screenStream) {
+      state.screenStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Close data channel
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close();
+      dataChannelRef.current = null;
+    }
+    
     // Close peer connection
     if (state.peerConnection) {
       state.peerConnection.close();
@@ -234,6 +389,7 @@ export const useWebRTC = () => {
     setState({
       localStream: null,
       remoteStream: null,
+      screenStream: null,
       offer: null,
       answer: null,
       peerConnection: null,
@@ -243,7 +399,7 @@ export const useWebRTC = () => {
       title: "Call ended",
       description: "You have disconnected from the video call.",
     });
-  }, [state.localStream, state.peerConnection, toast]);
+  }, [state.localStream, state.peerConnection, state.screenStream, toast]);
 
   // Clean up when component unmounts
   useEffect(() => {
@@ -252,11 +408,19 @@ export const useWebRTC = () => {
         state.localStream.getTracks().forEach(track => track.stop());
       }
       
+      if (state.screenStream) {
+        state.screenStream.getTracks().forEach(track => track.stop());
+      }
+      
+      if (dataChannelRef.current) {
+        dataChannelRef.current.close();
+      }
+      
       if (state.peerConnection) {
         state.peerConnection.close();
       }
     };
-  }, [state.localStream, state.peerConnection]);
+  }, [state.localStream, state.peerConnection, state.screenStream]);
 
   return {
     state,
@@ -271,6 +435,9 @@ export const useWebRTC = () => {
       completeCall,
       toggleMic,
       toggleVideo,
+      startScreenShare,
+      stopScreenShare,
+      sendMessage,
       endCall,
     }
   };

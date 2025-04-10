@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import VideoCall from "./pages/VideoCall";
+import Dashboard from "./pages/Dashboard";
 import Services from "./pages/Services";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
@@ -20,7 +21,7 @@ import Terms from "./pages/Terms";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
-// New imports for role-specific auth pages
+// Role-specific auth pages
 import PatientLoginPage from "./pages/PatientLoginPage";
 import PatientSignupPage from "./pages/PatientSignupPage";
 import PsychologistLoginPage from "./pages/PsychologistLoginPage";
@@ -49,6 +50,7 @@ const TrackingRoutes = () => {
         <Route path="/patient-signup" element={<PatientSignupPage />} />
         <Route path="/psychologist-login" element={<PsychologistLoginPage />} />
         <Route path="/psychologist-signup" element={<PsychologistSignupPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/video" element={<VideoCall />} />
         <Route path="/services" element={<Services />} />
         <Route path="/about" element={<About />} />
