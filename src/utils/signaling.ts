@@ -7,12 +7,22 @@ type SignalingCallbacks = {
   [key: string]: SignalingCallback[];
 };
 
+export interface Invitation {
+  id: string;
+  roomId: string;
+  from: string;
+  to: string;
+  createdAt: number;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
 class SignalingService {
   private callbacks: SignalingCallbacks = {};
   private offers: Record<string, RTCSessionDescriptionInit> = {};
   private answers: Record<string, RTCSessionDescriptionInit> = {};
   private candidates: Record<string, RTCIceCandidateInit[]> = {};
   private rooms: Record<string, string[]> = {};
+  private invitations: Invitation[] = [];
 
   constructor() {
     this.callbacks = {
@@ -21,6 +31,9 @@ class SignalingService {
       iceCandidate: [],
       userJoined: [],
       userLeft: [],
+      invitation: [],
+      invitationAccepted: [],
+      invitationDeclined: [],
     };
   }
 
@@ -110,6 +123,73 @@ class SignalingService {
   // Get all users in a room
   getRoomUsers(roomId: string): string[] {
     return this.rooms[roomId] || [];
+  }
+
+  // Send an invitation to join a video call
+  sendInvitation(roomId: string, from: string, to: string): Invitation {
+    const invitation: Invitation = {
+      id: `inv_${Date.now()}`,
+      roomId,
+      from,
+      to,
+      createdAt: Date.now(),
+      status: 'pending'
+    };
+
+    this.invitations.push(invitation);
+    
+    // Simulate sending to recipient
+    setTimeout(() => {
+      this.trigger('invitation', invitation);
+    }, 300);
+
+    return invitation;
+  }
+
+  // Accept an invitation
+  acceptInvitation(invitationId: string): Invitation | null {
+    const invitation = this.invitations.find(inv => inv.id === invitationId);
+    
+    if (invitation && invitation.status === 'pending') {
+      invitation.status = 'accepted';
+      
+      // Join the room
+      this.joinRoom(invitation.roomId, invitation.to);
+      
+      // Notify sender
+      setTimeout(() => {
+        this.trigger('invitationAccepted', invitation);
+      }, 300);
+      
+      return invitation;
+    }
+    
+    return null;
+  }
+
+  // Decline an invitation
+  declineInvitation(invitationId: string): Invitation | null {
+    const invitation = this.invitations.find(inv => inv.id === invitationId);
+    
+    if (invitation && invitation.status === 'pending') {
+      invitation.status = 'declined';
+      
+      // Notify sender
+      setTimeout(() => {
+        this.trigger('invitationDeclined', invitation);
+      }, 300);
+      
+      return invitation;
+    }
+    
+    return null;
+  }
+
+  // Get pending invitations for a user
+  getPendingInvitations(userId: string): Invitation[] {
+    return this.invitations.filter(
+      inv => inv.to === userId && inv.status === 'pending'
+    );
   }
 }
 

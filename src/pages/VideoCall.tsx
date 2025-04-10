@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users, Settings } from 'lucide-react';
 import Navbar from '@/components/Navbar';
@@ -8,8 +8,8 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import { signaling } from '@/utils/signaling';
 
 const VideoCall = () => {
-  // Room and user information (in a real app, these would come from auth and routing)
-  const roomId = 'demo-room';
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('room') || 'demo-room';
   const userId = 'patient';
   const isDoctor = false; // This would normally be determined by user role
 
@@ -18,7 +18,6 @@ const VideoCall = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [participants, setParticipants] = useState<string[]>([]);
   
-  // Initialize WebRTC hook
   const { 
     state, 
     refs: { localVideoRef, remoteVideoRef },
@@ -33,24 +32,19 @@ const VideoCall = () => {
     }
   } = useWebRTC();
 
-  // Initialize media and join room
   useEffect(() => {
     const setupCall = async () => {
       await initializeLocalStream();
       
-      // Join the signaling room
       signaling.joinRoom(roomId, userId);
       
-      // Update participants
       setParticipants(signaling.getRoomUsers(roomId));
       
-      // If doctor, initialize call when another user joins
       if (isDoctor) {
         signaling.on('userJoined', async ({ roomId: room }) => {
           if (room === roomId && !state.peerConnection) {
             const result = await initializeCall();
             if (result) {
-              // Send offer through signaling
               signaling.sendOffer(roomId, userId, result.offer);
             }
           }
@@ -60,28 +54,23 @@ const VideoCall = () => {
     
     setupCall();
     
-    // Clean up when component unmounts
     return () => {
       signaling.leaveRoom(roomId, userId);
       endCall();
     };
-  }, []);
+  }, [roomId]);
   
-  // Handle signaling events
   useEffect(() => {
-    // Handle incoming offers
     signaling.on('offer', async ({ roomId: room, offer }) => {
       if (room === roomId && !isDoctor) {
         const result = await answerCall(offer);
         if (result) {
-          // Send answer back through signaling
           signaling.sendAnswer(roomId, userId, result.answer);
           setIsConnected(true);
         }
       }
     });
     
-    // Handle incoming answers
     signaling.on('answer', async ({ roomId: room, answer }) => {
       if (room === roomId && isDoctor) {
         const success = await completeCall(answer);
@@ -91,7 +80,6 @@ const VideoCall = () => {
       }
     });
     
-    // Handle users joining/leaving
     signaling.on('userJoined', ({ roomId: room }) => {
       if (room === roomId) {
         setParticipants(signaling.getRoomUsers(roomId));
@@ -106,25 +94,26 @@ const VideoCall = () => {
         }
       }
     });
-  }, [answerCall, completeCall, isDoctor]);
+  }, [answerCall, completeCall, isDoctor, roomId]);
 
-  // Handle microphone toggle
   const handleToggleMic = () => {
     const newState = toggleMic();
     setIsMicOn(newState);
   };
 
-  // Handle video toggle
   const handleToggleVideo = () => {
     const newState = toggleVideo();
     setIsVideoOn(newState);
   };
 
-  // Handle call end
   const handleEndCall = () => {
     endCall();
     signaling.leaveRoom(roomId, userId);
     setIsConnected(false);
+  };
+
+  const handleSendInvitation = () => {
+    signaling.sendInvitation(roomId, userId, 'doctor');
   };
 
   return (
@@ -133,16 +122,23 @@ const VideoCall = () => {
       
       <div className="flex-grow bg-gray-100 py-6 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Video Session</h1>
-            <p className="text-gray-600">Secure and private video therapy session</p>
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Video Session</h1>
+              <p className="text-gray-600">Room: {roomId}</p>
+            </div>
+            
+            {isDoctor && (
+              <Button onClick={handleSendInvitation} className="bg-blue-600 hover:bg-blue-700">
+                <Users className="mr-2 h-4 w-4" /> 
+                Invite Patient
+              </Button>
+            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Main video area */}
             <div className="lg:col-span-3">
               <div className="bg-black rounded-xl overflow-hidden shadow-xl aspect-video relative">
-                {/* Remote video stream (primary when connected) */}
                 <video
                   ref={remoteVideoRef}
                   autoPlay
@@ -150,7 +146,6 @@ const VideoCall = () => {
                   className={`w-full h-full object-cover ${isConnected ? 'block' : 'hidden'}`}
                 />
                 
-                {/* Local video stream (primary when not connected) */}
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -159,19 +154,16 @@ const VideoCall = () => {
                   className={`w-full h-full object-cover ${isConnected ? 'hidden' : 'block'}`}
                 />
                 
-                {/* Video disabled indicator */}
                 {!isVideoOn && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                     <p className="text-white text-lg">Camera is turned off</p>
                   </div>
                 )}
                 
-                {/* Status indicator */}
                 <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
                   {isConnected ? 'Connected' : 'Waiting for connection...'}
                 </div>
                 
-                {/* Video controls */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center space-x-4">
                   <Button 
                     variant="outline" 
@@ -201,7 +193,6 @@ const VideoCall = () => {
                   </Button>
                 </div>
                 
-                {/* Self view (picture-in-picture) - only show when connected */}
                 {isConnected && isVideoOn && (
                   <div className="absolute top-4 right-4 w-40 h-32 bg-gray-800 rounded-lg overflow-hidden border border-white/20 shadow-xl">
                     <video
@@ -215,7 +206,6 @@ const VideoCall = () => {
                 )}
               </div>
               
-              {/* Call info and tools */}
               <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Button variant="outline" className="flex items-center justify-center gap-2">
                   <MessageSquare className="h-4 w-4" />
@@ -241,7 +231,6 @@ const VideoCall = () => {
               </div>
             </div>
             
-            {/* Sidebar */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow p-4 h-full">
                 <h2 className="font-medium text-gray-900 mb-4">Session Information</h2>

@@ -13,6 +13,7 @@ import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookieConsent from "./components/CookieConsent";
+import CallInvitation from "./components/CallInvitation";
 import { trackPageView } from "./utils/tracking";
 
 const queryClient = new QueryClient();
@@ -27,15 +28,18 @@ const TrackingRoutes = () => {
   }, [location]);
   
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/video" element={<VideoCall />} />
-      <Route path="/services" element={<Services />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <CallInvitation />
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/video" element={<VideoCall />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 };
 
