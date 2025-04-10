@@ -17,6 +17,13 @@ import CookieConsent from "./components/CookieConsent";
 import CallInvitation from "./components/CallInvitation";
 import { trackPageView } from "./utils/tracking";
 
+// New imports for role-specific auth pages
+import PatientLoginPage from "./pages/PatientLoginPage";
+import PatientSignupPage from "./pages/PatientSignupPage";
+import PsychologistLoginPage from "./pages/PsychologistLoginPage";
+import PsychologistSignupPage from "./pages/PsychologistSignupPage";
+import AuthTypeSelector from "./components/AuthTypeSelector";
+
 const queryClient = new QueryClient();
 
 // Track page views on route changes
@@ -33,8 +40,12 @@ const TrackingRoutes = () => {
       <CallInvitation />
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/login" element={<AuthTypeSelector />} />
+        <Route path="/signup" element={<AuthTypeSelector />} />
+        <Route path="/patient-login" element={<PatientLoginPage />} />
+        <Route path="/patient-signup" element={<PatientSignupPage />} />
+        <Route path="/psychologist-login" element={<PsychologistLoginPage />} />
+        <Route path="/psychologist-signup" element={<PsychologistSignupPage />} />
         <Route path="/video" element={<VideoCall />} />
         <Route path="/services" element={<Services />} />
         <Route path="/about" element={<About />} />
