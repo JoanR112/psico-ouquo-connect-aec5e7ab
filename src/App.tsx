@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 import VideoCall from "./pages/VideoCall";
 import Services from "./pages/Services";
 import About from "./pages/About";
@@ -33,6 +34,7 @@ const TrackingRoutes = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route path="/video" element={<VideoCall />} />
         <Route path="/services" element={<Services />} />
         <Route path="/about" element={<About />} />

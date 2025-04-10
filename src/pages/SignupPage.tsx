@@ -11,7 +11,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 
-const LoginPage = () => {
+const SignupPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,8 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: false,
+    fullName: '',
+    agreeTerms: false,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,31 +30,42 @@ const LoginPage = () => {
       [name]: type === 'checkbox' ? checked : value,
     });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    if (!formData.agreeTerms) {
+      setError('You must agree to the terms and conditions');
+      return;
+    }
+
     setLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+          },
+        },
       });
 
       if (error) throw error;
 
       toast({
-        title: "Login successful",
-        description: "You have been logged in successfully.",
+        title: "Account created successfully!",
+        description: "Please check your email to verify your account.",
       });
       
-      navigate('/');
+      navigate('/login');
     } catch (error: any) {
-      setError(error.message || 'An error occurred during login');
+      setError(error.message || 'An error occurred during signup');
       toast({
-        title: "Login failed",
-        description: error.message || 'An error occurred during login',
+        title: "Signup failed",
+        description: error.message || 'An error occurred during signup',
         variant: "destructive",
       });
     } finally {
@@ -75,8 +87,8 @@ const LoginPage = () => {
                 className="h-12 w-12"
               />
             </div>
-            <h2 className="text-3xl font-bold">Welcome back</h2>
-            <p className="mt-2 text-gray-600">Sign in to your account to continue</p>
+            <h2 className="text-3xl font-bold">Create an account</h2>
+            <p className="mt-2 text-gray-600">Sign up to get started with Psicome</p>
           </div>
           
           <div className="bg-white p-8 rounded-xl shadow-md">
@@ -87,6 +99,20 @@ const LoginPage = () => {
             )}
             
             <form className="space-y-6" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  placeholder="John Doe"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -102,49 +128,46 @@ const LoginPage = () => {
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-psicoblue hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
+                  minLength={6}
                 />
+                <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
               </div>
 
-              <div className="flex items-center">
+              <div className="flex items-center space-x-2">
                 <Checkbox 
-                  id="rememberMe" 
-                  name="rememberMe"
-                  checked={formData.rememberMe}
+                  id="agreeTerms" 
+                  name="agreeTerms"
+                  checked={formData.agreeTerms}
                   onCheckedChange={(checked) => 
-                    setFormData({...formData, rememberMe: checked === true})
+                    setFormData({...formData, agreeTerms: checked === true})
                   }
                 />
-                <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-600">
-                  Remember me
+                <label htmlFor="agreeTerms" className="text-sm text-gray-600">
+                  I agree to the <Link to="/terms" className="text-psicoblue hover:underline">Terms of Service</Link> and <Link to="/privacy-policy" className="text-psicoblue hover:underline">Privacy Policy</Link>
                 </label>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? 'Creating account...' : 'Sign up'}
               </Button>
             </form>
           </div>
           
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link to="/signup" className="font-medium text-psicoblue hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="font-medium text-psicoblue hover:underline">
+                Sign in
               </Link>
             </p>
           </div>
@@ -156,4 +179,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignupPage;
