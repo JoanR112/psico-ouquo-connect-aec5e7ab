@@ -11,6 +11,7 @@ interface AuthGuardProps {
 const AuthGuard = ({ children }: AuthGuardProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
 
@@ -22,6 +23,13 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
         setIsAuthenticated(true);
       } else {
         setIsAuthenticated(false);
+        setShouldRedirect(true);
+        // Show toast notification when user is not authenticated
+        toast({
+          title: "Authentication required",
+          description: "Please log in to access this page",
+          variant: "destructive",
+        });
       }
       
       setIsLoading(false);
@@ -31,13 +39,14 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
+      setShouldRedirect(!session);
       setIsLoading(false);
     });
     
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [toast]);
   
   if (isLoading) {
     return (
@@ -47,13 +56,7 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
     );
   }
   
-  if (!isAuthenticated) {
-    toast({
-      title: "Authentication required",
-      description: "Please log in to access this page",
-      variant: "destructive",
-    });
-    
+  if (!isAuthenticated && shouldRedirect) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
   
