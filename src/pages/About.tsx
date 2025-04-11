@@ -92,38 +92,26 @@ const About = () => {
         </div>
       </section>
       
-      {/* Team Section */}
+      {/* Leadership Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-12 text-center">Leadership Team</h2>
+          <h2 className="text-3xl font-bold mb-12 text-center">Leadership</h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 max-w-5xl mx-auto">
-            {/* Team Member 1 */}
-            <div className="text-center">
-              <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Dr. Emily Rodriguez</h3>
-              <p className="text-sm text-gray-600">CEO, Psicome</p>
-            </div>
-            
-            {/* Team Member 2 */}
-            <div className="text-center">
-              <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Dr. Sarah Johnson</h3>
-              <p className="text-sm text-gray-600">Clinical Director</p>
-            </div>
-            
-            {/* Team Member 3 */}
-            <div className="text-center">
-              <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Robert Williams</h3>
-              <p className="text-sm text-gray-600">CTO</p>
-            </div>
-            
-            {/* Team Member 4 */}
-            <div className="text-center">
-              <div className="aspect-square rounded-full bg-gray-200 mb-4"></div>
-              <h3 className="font-bold">Jennifer Chen</h3>
-              <p className="text-sm text-gray-600">Product Director</p>
+          <div className="flex justify-center">
+            {/* Joan Rotllan */}
+            <div className="text-center max-w-xs">
+              <div className="mx-auto rounded-full bg-gray-100 mb-6 overflow-hidden w-56 h-56">
+                <img 
+                  src="/lovable-uploads/b6b02843-d7d2-4f3d-bcc6-7400bf3d3a01.png" 
+                  alt="Joan Rotllan" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-bold">Joan Rotllan</h3>
+              <p className="text-sm text-gray-600 mt-2">CEO & Founder, Psicome</p>
+              <p className="mt-4 text-gray-700 px-4">
+                Visionary founder who created Psicome with the mission to transform mental healthcare accessibility through technology.
+              </p>
             </div>
           </div>
         </div>
