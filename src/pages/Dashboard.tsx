@@ -5,19 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { CalendarDays, Clock, Plus, Video } from 'lucide-react';
+import { CalendarDays, Plus, Video } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import MeetingCard from '@/components/MeetingCard';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<any[]>([]);
+  const [recentCalls, setRecentCalls] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [newMeetingUrl, setNewMeetingUrl] = useState<string>('');
+  const [joinCode, setJoinCode] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check authentication status
@@ -28,29 +31,86 @@ const Dashboard = () => {
         return;
       }
       setUser(session.user);
-      fetchSessions(session.user.id);
+      
+      // Fetch user profile data to get role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profile) {
+        setUser(prev => ({ ...prev, profile }));
+      }
+      
+      await fetchSessions(session.user.id);
+      setIsLoading(false);
     };
     
     checkAuth();
   }, [navigate]);
 
+  // Subscribe to real-time updates for sessions
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const channel = supabase
+      .channel('public:sessions')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'sessions'
+      }, () => {
+        // Re-fetch sessions when changes occur
+        fetchSessions(user.id);
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   // Fetch user's sessions
   const fetchSessions = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('sessions')
-      .select('*')
-      .or(`host_id.eq.${userId},invitations(recipient_email).eq.${user?.email}`)
-      .order('scheduled_at', { ascending: false });
+    try {
+      // Fetch upcoming sessions (scheduled in the future)
+      const { data: upcomingSessions, error: upcomingError } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          invitations(*)
+        `)
+        .or(`host_id.eq.${userId},invitations.recipient_email.eq.${user?.email}`)
+        .gt('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true });
+        
+      if (upcomingError) throw upcomingError;
       
-    if (error) {
+      // Fetch recent sessions (in the past)
+      const { data: pastSessions, error: pastError } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          invitations(*)
+        `)
+        .or(`host_id.eq.${userId},invitations.recipient_email.eq.${user?.email}`)
+        .lt('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: false })
+        .limit(5);
+        
+      if (pastError) throw pastError;
+      
+      setSessions(upcomingSessions || []);
+      setRecentCalls(pastSessions || []);
+      
+    } catch (error: any) {
       console.error('Error fetching sessions:', error);
       toast({
         title: "Failed to load sessions",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive",
       });
-    } else {
-      setSessions(data || []);
     }
   };
 
@@ -58,26 +118,22 @@ const Dashboard = () => {
   const createNewMeeting = async () => {
     const roomId = uuidv4();
     
-    const { data, error } = await supabase
-      .from('sessions')
-      .insert([
-        { 
-          host_id: user.id,
-          title: `Meeting with ${user.email}`,
-          scheduled_at: new Date().toISOString(),
-          duration: 30
-        }
-      ])
-      .select();
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .insert([
+          { 
+            host_id: user.id,
+            title: `Meeting with ${user.email}`,
+            scheduled_at: new Date().toISOString(),
+            duration: 30,
+            status: 'active'
+          }
+        ])
+        .select();
+        
+      if (error) throw error;
       
-    if (error) {
-      console.error('Error creating session:', error);
-      toast({
-        title: "Failed to create meeting",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    } else {
       toast({
         title: "Meeting created",
         description: "Your meeting room is ready",
@@ -88,12 +144,33 @@ const Dashboard = () => {
       
       // Refresh sessions list
       fetchSessions(user.id);
+    } catch (error: any) {
+      console.error('Error creating session:', error);
+      toast({
+        title: "Failed to create meeting",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
     }
   };
 
   // Join an existing session
   const joinSession = (sessionId: string, roomId: string) => {
-    navigate(`/video?room=${roomId}`);
+    navigate(`/video?room=${roomId || sessionId}`);
+  };
+
+  // Join a meeting by code
+  const joinMeetingByCode = () => {
+    if (!joinCode.trim()) {
+      toast({
+        title: "No meeting code",
+        description: "Please enter a valid meeting code",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    navigate(`/video?room=${joinCode.trim()}`);
   };
 
   // Copy meeting link to clipboard
@@ -106,12 +183,17 @@ const Dashboard = () => {
       });
     } catch (err) {
       console.error('Failed to copy:', err);
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy link to clipboard",
+        variant: "destructive",
+      });
     }
   };
 
-  if (!user) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">
-      <span className="loading loading-spinner loading-lg"></span>
+      <div className="w-12 h-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
     </div>;
   }
 
@@ -122,7 +204,7 @@ const Dashboard = () => {
       <div className="flex-grow bg-gray-50 py-8">
         <div className="container mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Welcome, {user.email}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Welcome, {user?.profile?.full_name || user?.email}</h1>
             <p className="text-gray-600">Manage your video sessions and appointments</p>
           </div>
           
@@ -140,30 +222,16 @@ const Dashboard = () => {
                     <p className="text-sm mt-2">Create a new meeting to get started</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {sessions.map((session) => (
-                      <div key={session.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50">
-                        <div>
-                          <h3 className="font-medium">{session.title}</h3>
-                          <div className="flex items-center text-sm text-gray-500 mt-1">
-                            <CalendarDays className="h-4 w-4 mr-1" />
-                            <span>{new Date(session.scheduled_at).toLocaleString()}</span>
-                            <Clock className="h-4 w-4 ml-3 mr-1" />
-                            <span>{session.duration} min</span>
-                          </div>
-                        </div>
-                        <div className="space-x-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => copyMeetingLink(`${window.location.origin}/video?room=${session.id}`)}
-                          >
-                            Copy Link
-                          </Button>
-                          <Button onClick={() => joinSession(session.id, session.id)}>
-                            Join
-                          </Button>
-                        </div>
-                      </div>
+                      <MeetingCard
+                        key={session.id}
+                        id={session.id}
+                        title={session.title}
+                        scheduledAt={session.scheduled_at}
+                        duration={session.duration}
+                        onJoin={() => joinSession(session.id, session.id)}
+                      />
                     ))}
                   </div>
                 )}
@@ -201,8 +269,12 @@ const Dashboard = () => {
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-medium mb-2">Join with code</h3>
                   <div className="flex">
-                    <Input placeholder="Enter meeting code" />
-                    <Button className="ml-2">Join</Button>
+                    <Input 
+                      placeholder="Enter meeting code" 
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                    />
+                    <Button className="ml-2" onClick={joinMeetingByCode}>Join</Button>
                   </div>
                 </div>
               </CardContent>
@@ -216,19 +288,20 @@ const Dashboard = () => {
                 <CardDescription>Your recent video call history</CardDescription>
               </CardHeader>
               <CardContent>
-                {sessions.length === 0 ? (
+                {recentCalls.length === 0 ? (
                   <div className="text-center py-6 text-gray-500">
                     <p>No recent calls</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {sessions.slice(0, 5).map((session) => (
+                    {recentCalls.map((session) => (
                       <div key={`history-${session.id}`} className="flex justify-between p-3 border-b last:border-0">
                         <div>
                           <h4 className="font-medium">{session.title}</h4>
-                          <p className="text-sm text-gray-500">
-                            {formatDistanceToNow(new Date(session.scheduled_at), { addSuffix: true })}
-                          </p>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <CalendarDays className="h-4 w-4 mr-1" />
+                            <span>{new Date(session.scheduled_at).toLocaleString()}</span>
+                          </div>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => joinSession(session.id, session.id)}>
                           Rejoin

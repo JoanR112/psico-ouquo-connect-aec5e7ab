@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Share2, Monitor } from 'lucide-react';
+import { Share2, Monitor, Mic, MicOff } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useWebRTC } from '@/hooks/useWebRTC';
@@ -48,7 +47,6 @@ const VideoCall = () => {
     }
   } = useWebRTC();
 
-  // Check authentication status
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -56,7 +54,6 @@ const VideoCall = () => {
       if (session?.user) {
         setUserId(session.user.id);
         
-        // Fetch user profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, role')
@@ -70,7 +67,6 @@ const VideoCall = () => {
           setUserName(session.user.email || 'User');
         }
       } else {
-        // Redirect to login if not authenticated
         navigate('/login', { state: { from: `/video?room=${roomId}` } });
       }
     };
@@ -78,11 +74,9 @@ const VideoCall = () => {
     checkAuth();
   }, [navigate, roomId]);
 
-  // Fetch session details if it exists
   useEffect(() => {
     const fetchSessionDetails = async () => {
       try {
-        // Check if roomId corresponds to a session ID in the database
         const { data: session } = await supabase
           .from('sessions')
           .select(`
@@ -166,14 +160,11 @@ const VideoCall = () => {
     
     signaling.on('userJoined', ({ roomId: room, userId: joinedUserId }) => {
       if (room === roomId) {
-        // Update participants list
         setParticipants(prev => {
-          // Check if participant already exists
           if (prev.find(p => p.id === joinedUserId)) {
             return prev;
           }
           
-          // Add new participant
           return [...prev, {
             id: joinedUserId,
             name: joinedUserId === 'doctor' ? 'Dr. Sarah Johnson' : 'John Doe',

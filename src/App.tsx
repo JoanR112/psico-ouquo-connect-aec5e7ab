@@ -20,6 +20,7 @@ import { trackPageView } from "./utils/tracking";
 import Terms from "./pages/Terms";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AuthGuard from "./components/AuthGuard";
 
 // Role-specific auth pages
 import PatientLoginPage from "./pages/PatientLoginPage";
@@ -50,8 +51,12 @@ const TrackingRoutes = () => {
         <Route path="/patient-signup" element={<PatientSignupPage />} />
         <Route path="/psychologist-login" element={<PsychologistLoginPage />} />
         <Route path="/psychologist-signup" element={<PsychologistSignupPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/video" element={<VideoCall />} />
+        
+        {/* Protected routes */}
+        <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+        <Route path="/video" element={<AuthGuard><VideoCall /></AuthGuard>} />
+        
+        {/* Public routes */}
         <Route path="/services" element={<Services />} />
         <Route path="/about" element={<About />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />

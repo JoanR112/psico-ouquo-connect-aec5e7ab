@@ -1,4 +1,3 @@
-
 export interface PeerConnection {
   peerConnection: RTCPeerConnection;
   dataChannel?: RTCDataChannel;
@@ -100,7 +99,6 @@ export const replaceTracks = (peerConnection: RTCPeerConnection, newStream: Medi
 export const getScreenShareStream = async (): Promise<MediaStream> => {
   return await navigator.mediaDevices.getDisplayMedia({
     video: {
-      cursor: 'always',
       displaySurface: 'monitor',
     }
   });
