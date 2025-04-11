@@ -5,7 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Mail, Copy, Check } from 'lucide-react';
+import { Mail, Copy, Check, Calendar } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { formatISO } from 'date-fns';
 
 interface CallInvitationFormProps {
   sessionId: string;
@@ -16,6 +19,7 @@ interface CallInvitationFormProps {
 const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationFormProps) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(new Date());
   const [isSending, setIsSending] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const { toast } = useToast();
@@ -46,7 +50,7 @@ const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationF
     }
   };
 
-  // Send invitation email through Supabase
+  // Send invitation email through Supabase Edge Function
   const sendInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -68,43 +72,54 @@ const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationF
         return;
       }
       
-      // Create invitation in database
-      const { error } = await supabase
-        .from('invitations')
-        .insert([
-          { 
-            session_id: sessionId,
-            sender_id: userId,
-            recipient_email: email,
-            personal_message: message,
-          }
-        ]);
+      // Get user profile for name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
       
-      if (error) {
-        console.error('Error creating invitation:', error);
-        toast({
-          title: "Failed to send invitation",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Invitation sent",
-          description: `Invitation sent to ${email}`,
-        });
-        
-        // Reset form
-        setEmail('');
-        setMessage('');
-        
-        // Callback
-        if (onInviteSent) onInviteSent();
+      const hostName = profile?.full_name || session.user.email || 'A user';
+      
+      // Format scheduled date if provided
+      let formattedDate: string | undefined;
+      if (scheduledDate) {
+        formattedDate = scheduledDate.toLocaleString();
       }
+      
+      // Call the edge function to send invitation
+      const { data, error } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          recipientEmail: email,
+          meetingId: roomId,
+          hostName,
+          personalMessage: message,
+          scheduledTime: formattedDate
+        }
+      });
+
+      if (error) {
+        console.error('Error sending invitation:', error);
+        throw new Error(error.message || 'Failed to send invitation');
+      }
+      
+      toast({
+        title: "Invitation sent",
+        description: `Invitation sent to ${email}`,
+      });
+      
+      // Reset form
+      setEmail('');
+      setMessage('');
+      
+      // Callback
+      if (onInviteSent) onInviteSent();
+      
     } catch (error) {
       console.error('Error sending invitation:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -153,6 +168,26 @@ const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationF
               placeholder="recipient@example.com"
               required
             />
+          </div>
+          
+          <div>
+            <label htmlFor="scheduled-time" className="block text-sm font-medium text-gray-700 mb-1">
+              Scheduled time (optional)
+            </label>
+            <div className="relative">
+              <DatePicker
+                selected={scheduledDate}
+                onChange={(date) => setScheduledDate(date)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                timeCaption="time"
+                dateFormat="MMMM d, yyyy h:mm aa"
+                className="w-full rounded-md border border-input px-3 py-2 text-sm ring-offset-background"
+                wrapperClassName="w-full"
+              />
+              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none h-4 w-4" />
+            </div>
           </div>
           
           <div>

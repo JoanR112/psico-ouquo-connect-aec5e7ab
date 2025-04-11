@@ -139,7 +139,8 @@ const Dashboard = () => {
         description: "Your meeting room is ready",
       });
       
-      const shareableUrl = `${window.location.origin}/video?room=${roomId}`;
+      const createdSessionId = data[0].id;
+      const shareableUrl = `${window.location.origin}/video?room=${createdSessionId}`;
       setNewMeetingUrl(shareableUrl);
       
       // Refresh sessions list

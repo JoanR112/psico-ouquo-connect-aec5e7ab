@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ const VideoCall = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const roomId = searchParams.get('room') || 'demo-room';
+  const token = searchParams.get('token');
   const [userId, setUserId] = useState<string>('anonymous');
   const [userName, setUserName] = useState<string>('Anonymous User');
   const [isDoctor, setIsDoctor] = useState(false);
@@ -30,6 +32,7 @@ const VideoCall = () => {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionDetails, setSessionDetails] = useState<any>(null);
+  const [isValidatingToken, setIsValidatingToken] = useState(!!token);
   
   const { 
     state, 
@@ -46,6 +49,37 @@ const VideoCall = () => {
       stopScreenShare
     }
   } = useWebRTC();
+
+  // Validate invitation token if present
+  useEffect(() => {
+    if (token) {
+      const validateToken = async () => {
+        try {
+          // For demo purposes, we use a simple base64 token
+          // In production, use a more secure method
+          const decodedToken = atob(token);
+          const [tokenRoomId, email] = decodedToken.split(':');
+          
+          if (tokenRoomId !== roomId) {
+            throw new Error('Invalid token for this room');
+          }
+          
+          // Mark token as validated
+          setIsValidatingToken(false);
+        } catch (error) {
+          console.error('Error validating token:', error);
+          toast({
+            title: "Invalid invitation link",
+            description: "This invitation link is invalid or expired",
+            variant: "destructive",
+          });
+          navigate('/dashboard');
+        }
+      };
+      
+      validateToken();
+    }
+  }, [token, roomId, navigate]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -67,42 +101,56 @@ const VideoCall = () => {
           setUserName(session.user.email || 'User');
         }
       } else {
-        navigate('/login', { state: { from: `/video?room=${roomId}` } });
+        navigate('/login', { state: { from: `/video?room=${roomId}${token ? `&token=${token}` : ''}` } });
       }
     };
     
     checkAuth();
-  }, [navigate, roomId]);
+  }, [navigate, roomId, token]);
 
   useEffect(() => {
     const fetchSessionDetails = async () => {
       try {
-        const { data: session } = await supabase
+        // First try to find by ID if roomId is a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        let sessionQuery = supabase
           .from('sessions')
           .select(`
             *,
             host: host_id (
               email,
               profiles (full_name, avatar_url)
-            )
-          `)
-          .eq('id', roomId)
-          .single();
+            ),
+            invitations(*)
+          `);
+          
+        if (uuidRegex.test(roomId)) {
+          sessionQuery = sessionQuery.eq('id', roomId);
+        } else {
+          // If not a UUID, use the roomId as is
+          sessionQuery = sessionQuery.eq('id', roomId);
+        }
+        
+        const { data: session } = await sessionQuery.single();
           
         if (session) {
           setSessionDetails(session);
         }
       } catch (error) {
         console.error('Error fetching session details:', error);
+        // If no session found, we can still proceed with the video call
+        // In a real app, you might want to create a session record here
       }
     };
     
-    if (roomId) {
+    if (roomId && !isValidatingToken) {
       fetchSessionDetails();
     }
-  }, [roomId]);
+  }, [roomId, isValidatingToken]);
 
   useEffect(() => {
+    if (isValidatingToken) return;
+    
     const setupCall = async () => {
       await initializeLocalStream();
       
@@ -111,21 +159,20 @@ const VideoCall = () => {
       const roomUsers = signaling.getRoomUsers(roomId);
       setParticipants(roomUsers.map(id => ({
         id,
-        name: id === userId ? userName : (id === 'doctor' ? 'Dr. Sarah Johnson' : 'John Doe'),
+        name: id === userId ? userName : 'Other Participant',
         isMuted: false,
-        isHost: id === 'doctor',
+        isHost: id === userId,
       })));
       
-      if (isDoctor) {
-        signaling.on('userJoined', async ({ roomId: room }) => {
-          if (room === roomId && !state.peerConnection) {
-            const result = await initializeCall();
-            if (result) {
-              signaling.sendOffer(roomId, userId, result.offer);
-            }
+      // Initialize call for both parties - the signaling server will handle who's the offerer
+      signaling.on('userJoined', async ({ roomId: room }) => {
+        if (room === roomId && !state.peerConnection) {
+          const result = await initializeCall();
+          if (result) {
+            signaling.sendOffer(roomId, userId, result.offer);
           }
-        });
-      }
+        }
+      });
     };
     
     if (userId !== 'anonymous') {
@@ -136,11 +183,11 @@ const VideoCall = () => {
       signaling.leaveRoom(roomId, userId);
       endCall();
     };
-  }, [roomId, userId, userName, isDoctor]);
+  }, [roomId, userId, userName, isValidatingToken, initializeLocalStream, initializeCall, state.peerConnection, endCall]);
   
   useEffect(() => {
     signaling.on('offer', async ({ roomId: room, offer }) => {
-      if (room === roomId && !isDoctor) {
+      if (room === roomId) {
         const result = await answerCall(offer);
         if (result) {
           signaling.sendAnswer(roomId, userId, result.answer);
@@ -150,7 +197,7 @@ const VideoCall = () => {
     });
     
     signaling.on('answer', async ({ roomId: room, answer }) => {
-      if (room === roomId && isDoctor) {
+      if (room === roomId) {
         const success = await completeCall(answer);
         if (success) {
           setIsConnected(true);
@@ -167,9 +214,9 @@ const VideoCall = () => {
           
           return [...prev, {
             id: joinedUserId,
-            name: joinedUserId === 'doctor' ? 'Dr. Sarah Johnson' : 'John Doe',
+            name: joinedUserId === userId ? userName : 'Other Participant',
             isMuted: false,
-            isHost: joinedUserId === 'doctor',
+            isHost: joinedUserId === userId,
           }];
         });
       }
@@ -184,7 +231,7 @@ const VideoCall = () => {
         }
       }
     });
-  }, [answerCall, completeCall, isDoctor, roomId]);
+  }, [answerCall, completeCall, roomId, userId, userName]);
 
   const handleToggleMic = () => {
     const newState = toggleMic();
@@ -247,6 +294,13 @@ const VideoCall = () => {
       }
     }
   };
+
+  if (isValidatingToken) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="w-12 h-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+      <p className="ml-3 text-lg">Validating invitation...</p>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
