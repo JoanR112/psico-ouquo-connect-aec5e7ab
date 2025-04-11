@@ -273,8 +273,8 @@ const VideoCall = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-13rem)]">
-            <div className={`${sidePanel !== 'none' ? 'lg:col-span-3' : 'lg:col-span-4'} h-full`}>
+          <div className="flex h-[calc(100vh-13rem)] gap-6">
+            <div className={`flex-1 ${sidePanel !== 'none' ? 'max-w-[calc(100%-21rem)]' : 'w-full'}`}>
               <div className="bg-black rounded-xl overflow-hidden shadow-xl aspect-video h-full relative">
                 <video
                   ref={remoteVideoRef}
@@ -330,7 +330,7 @@ const VideoCall = () => {
             </div>
             
             {sidePanel !== 'none' && (
-              <div className="lg:col-span-1 h-full bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="w-80 h-full bg-white rounded-xl shadow-lg overflow-hidden flex-shrink-0">
                 {sidePanel === 'chat' && (
                   <ChatPanel 
                     messages={chatMessages}
