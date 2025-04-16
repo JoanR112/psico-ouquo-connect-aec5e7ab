@@ -3,6 +3,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+// Declare the Twilio global type for TypeScript
+declare global {
+  interface Window {
+    Twilio: any;
+  }
+}
+
 // Define types for Twilio Video
 type TwilioRoom = {
   disconnect: () => void;
@@ -88,6 +95,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       
       localParticipant.videoTracks.forEach((publication) => {
         if (publication.isSubscribed && publication.track) {
+          // Pass HTMLVideoElement as argument to attach
           const videoElement = publication.track.attach(localVideoRef.current!);
           videoElement.style.width = '100%';
           videoElement.style.height = '100%';
@@ -111,7 +119,9 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
     // Attach video tracks
     participant.videoTracks.forEach(publication => {
       if (publication.isSubscribed && publication.track) {
-        const videoElement = publication.track.attach();
+        // Create a new HTML video element for attachment
+        const videoElement = document.createElement('video');
+        publication.track.attach(videoElement);
         videoElement.style.width = '100%';
         videoElement.style.height = '100%';
         videoElement.style.objectFit = 'cover';
@@ -122,7 +132,9 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
     // Attach audio tracks
     participant.audioTracks.forEach(publication => {
       if (publication.isSubscribed && publication.track) {
-        const audioElement = publication.track.attach();
+        // Create a new HTML audio element for attachment
+        const audioElement = document.createElement('audio');
+        publication.track.attach(audioElement);
         audioElement.style.display = 'none'; // Hide audio elements
         container.appendChild(audioElement);
       }
@@ -288,13 +300,15 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
         const container = remoteParticipantRefs.current[participant.sid];
         if (container && track) {
           if (track.kind === 'video') {
-            const videoElement = track.attach();
+            const videoElement = document.createElement('video');
+            track.attach(videoElement);
             videoElement.style.width = '100%';
             videoElement.style.height = '100%';
             videoElement.style.objectFit = 'cover';
             container.appendChild(videoElement);
           } else if (track.kind === 'audio') {
-            const audioElement = track.attach();
+            const audioElement = document.createElement('audio');
+            track.attach(audioElement);
             audioElement.style.display = 'none';
             container.appendChild(audioElement);
           }
