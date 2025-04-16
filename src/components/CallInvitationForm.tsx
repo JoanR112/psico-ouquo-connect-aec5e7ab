@@ -84,17 +84,65 @@ const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationF
       // Format scheduled date if provided
       let formattedDate: string | undefined;
       if (scheduledDate) {
-        formattedDate = scheduledDate.toLocaleString();
+        formattedDate = formatISO(scheduledDate);
       }
       
-      // Call the edge function to send invitation
+      // First, create or update the session record if needed
+      let sessionRecord = sessionId;
+      
+      // If sessionId isn't a UUID, we might need to create a new session
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(sessionId)) {
+        // Check if a session with this room ID already exists
+        const { data: existingSession } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .maybeSingle();
+          
+        if (!existingSession) {
+          // Create a new session
+          const { data: newSession, error } = await supabase
+            .from('sessions')
+            .insert({
+              id: sessionId,  // Use the roomId as the session ID
+              host_id: userId,
+              title: `Call with ${email}`,
+              scheduled_at: scheduledDate ? formattedDate : new Date().toISOString(),
+              duration: 30,
+              status: 'active'
+            })
+            .select('id')
+            .single();
+            
+          if (error) throw new Error('Failed to create session');
+          sessionRecord = newSession.id;
+        } else {
+          sessionRecord = existingSession.id;
+        }
+      }
+      
+      // Now create the invitation
+      const { error: inviteError } = await supabase
+        .from('invitations')
+        .insert({
+          session_id: sessionRecord,
+          sender_id: userId,
+          recipient_email: email,
+          personal_message: message,
+          status: 'sent'
+        });
+        
+      if (inviteError) throw new Error('Failed to create invitation');
+      
+      // Call the edge function to send invitation email
       const { data, error } = await supabase.functions.invoke('send-invitation', {
         body: {
           recipientEmail: email,
           meetingId: roomId,
           hostName,
           personalMessage: message,
-          scheduledTime: formattedDate
+          scheduledTime: scheduledDate ? formattedDate : undefined
         }
       });
 
@@ -115,7 +163,7 @@ const CallInvitationForm = ({ sessionId, roomId, onInviteSent }: CallInvitationF
       // Callback
       if (onInviteSent) onInviteSent();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending invitation:', error);
       toast({
         title: "Error",

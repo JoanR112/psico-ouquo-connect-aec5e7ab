@@ -1,54 +1,54 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Share2, Monitor, Mic, MicOff } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useWebRTC } from '@/hooks/useWebRTC';
-import { signaling } from '@/utils/signaling';
 import { supabase } from '@/integrations/supabase/client';
 import VideoControls from '@/components/VideoControls';
 import ParticipantsList from '@/components/ParticipantsList';
 import ChatPanel from '@/components/ChatPanel';
 import CallInvitationForm from '@/components/CallInvitationForm';
+import useTwilioVideo from '@/hooks/useTwilioVideo';
 
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const roomId = searchParams.get('room') || 'demo-room';
   const token = searchParams.get('token');
   const [userId, setUserId] = useState<string>('anonymous');
   const [userName, setUserName] = useState<string>('Anonymous User');
   const [isDoctor, setIsDoctor] = useState(false);
   
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [participants, setParticipants] = useState<any[]>([]);
   const [sidePanel, setSidePanel] = useState<'none' | 'chat' | 'participants' | 'invite'>('none');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionDetails, setSessionDetails] = useState<any>(null);
   const [isValidatingToken, setIsValidatingToken] = useState(!!token);
   
-  const { 
-    state, 
-    refs: { localVideoRef, remoteVideoRef },
-    actions: {
-      initializeLocalStream,
-      initializeCall,
-      answerCall,
-      completeCall,
-      toggleMic,
-      toggleVideo,
-      endCall,
-      startScreenShare,
-      stopScreenShare
-    }
-  } = useWebRTC();
+  // Remote participant container refs
+  const participantContainers = useRef<Record<string, HTMLDivElement>>({});
+  
+  // Use our Twilio Video hook
+  const {
+    connect,
+    disconnect,
+    toggleMicrophone,
+    toggleCamera,
+    isConnecting,
+    isConnected,
+    isMicEnabled,
+    isVideoEnabled,
+    participants,
+    localVideoRef,
+    remoteParticipantRefs
+  } = useTwilioVideo({ 
+    roomId, 
+    identity: userName 
+  });
 
   // Validate invitation token if present
   useEffect(() => {
@@ -78,9 +78,12 @@ const VideoCall = () => {
       };
       
       validateToken();
+    } else {
+      setIsValidatingToken(false);
     }
-  }, [token, roomId, navigate]);
+  }, [token, roomId, navigate, toast]);
 
+  // Check authentication and get user details
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -108,6 +111,7 @@ const VideoCall = () => {
     checkAuth();
   }, [navigate, roomId, token]);
 
+  // Fetch session details
   useEffect(() => {
     const fetchSessionDetails = async () => {
       try {
@@ -139,134 +143,26 @@ const VideoCall = () => {
       } catch (error) {
         console.error('Error fetching session details:', error);
         // If no session found, we can still proceed with the video call
-        // In a real app, you might want to create a session record here
       }
     };
     
-    if (roomId && !isValidatingToken) {
+    if (roomId && !isValidatingToken && userId !== 'anonymous') {
       fetchSessionDetails();
     }
-  }, [roomId, isValidatingToken]);
+  }, [roomId, isValidatingToken, userId]);
 
+  // Connect to the Twilio room when ready
   useEffect(() => {
-    if (isValidatingToken) return;
+    if (isValidatingToken || userId === 'anonymous') return;
     
-    const setupCall = async () => {
-      await initializeLocalStream();
-      
-      signaling.joinRoom(roomId, userId);
-      
-      const roomUsers = signaling.getRoomUsers(roomId);
-      setParticipants(roomUsers.map(id => ({
-        id,
-        name: id === userId ? userName : 'Other Participant',
-        isMuted: false,
-        isHost: id === userId,
-      })));
-      
-      // Initialize call for both parties - the signaling server will handle who's the offerer
-      signaling.on('userJoined', async ({ roomId: room }) => {
-        if (room === roomId && !state.peerConnection) {
-          const result = await initializeCall();
-          if (result) {
-            signaling.sendOffer(roomId, userId, result.offer);
-          }
-        }
-      });
-    };
-    
-    if (userId !== 'anonymous') {
-      setupCall();
-    }
+    // Connect to the Twilio room
+    connect();
     
     return () => {
-      signaling.leaveRoom(roomId, userId);
-      endCall();
+      // Disconnect when component unmounts
+      disconnect();
     };
-  }, [roomId, userId, userName, isValidatingToken, initializeLocalStream, initializeCall, state.peerConnection, endCall]);
-  
-  useEffect(() => {
-    signaling.on('offer', async ({ roomId: room, offer }) => {
-      if (room === roomId) {
-        const result = await answerCall(offer);
-        if (result) {
-          signaling.sendAnswer(roomId, userId, result.answer);
-          setIsConnected(true);
-        }
-      }
-    });
-    
-    signaling.on('answer', async ({ roomId: room, answer }) => {
-      if (room === roomId) {
-        const success = await completeCall(answer);
-        if (success) {
-          setIsConnected(true);
-        }
-      }
-    });
-    
-    signaling.on('userJoined', ({ roomId: room, userId: joinedUserId }) => {
-      if (room === roomId) {
-        setParticipants(prev => {
-          if (prev.find(p => p.id === joinedUserId)) {
-            return prev;
-          }
-          
-          return [...prev, {
-            id: joinedUserId,
-            name: joinedUserId === userId ? userName : 'Other Participant',
-            isMuted: false,
-            isHost: joinedUserId === userId,
-          }];
-        });
-      }
-    });
-    
-    signaling.on('userLeft', ({ roomId: room, userId: leftUserId }) => {
-      if (room === roomId) {
-        setParticipants(prev => prev.filter(p => p.id !== leftUserId));
-        
-        if (signaling.getRoomUsers(roomId).length <= 1) {
-          setIsConnected(false);
-        }
-      }
-    });
-  }, [answerCall, completeCall, roomId, userId, userName]);
-
-  const handleToggleMic = () => {
-    const newState = toggleMic();
-    setIsMicOn(newState);
-  };
-
-  const handleToggleVideo = () => {
-    const newState = toggleVideo();
-    setIsVideoOn(newState);
-  };
-
-  const handleToggleScreenShare = async () => {
-    try {
-      if (isScreenSharing) {
-        await stopScreenShare();
-        setIsScreenSharing(false);
-      } else {
-        await startScreenShare();
-        setIsScreenSharing(true);
-      }
-    } catch (error) {
-      console.error('Error toggling screen share:', error);
-    }
-  };
-
-  const handleEndCall = () => {
-    endCall();
-    signaling.leaveRoom(roomId, userId);
-    setIsConnected(false);
-    navigate('/dashboard');
-  };
-
-  const handleToggleSidePanel = (panel: 'chat' | 'participants' | 'invite') => {
-    setSidePanel(prevPanel => prevPanel === panel ? 'none' : panel);
-  };
+  }, [isValidatingToken, userId, connect, disconnect]);
 
   const handleSendChatMessage = (content: string) => {
     const newMessage = {
@@ -279,8 +175,8 @@ const VideoCall = () => {
     
     setChatMessages(prev => [...prev, newMessage]);
     
-    // In a real application, you'd send this to the other participants
-    // via WebRTC data channel or Supabase Realtime
+    // In a real application, you'd send this via Twilio DataTrack
+    // or another messaging system
   };
 
   const handleToggleFullscreen = () => {
@@ -293,6 +189,10 @@ const VideoCall = () => {
         setIsFullscreen(false);
       }
     }
+  };
+  
+  const handleToggleSidePanel = (panel: 'chat' | 'participants' | 'invite') => {
+    setSidePanel(prevPanel => prevPanel === panel ? 'none' : panel);
   };
 
   if (isValidatingToken) {
@@ -315,13 +215,11 @@ const VideoCall = () => {
             </div>
             
             <div className="flex space-x-2">
-              <Button onClick={handleToggleFullscreen} variant="outline" className="flex items-center gap-2">
-                <Monitor className="h-4 w-4" />
+              <Button onClick={handleToggleFullscreen} variant="outline">
                 {isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
               </Button>
               
-              <Button onClick={() => handleToggleSidePanel('invite')} variant="outline" className="flex items-center gap-2">
-                <Share2 className="h-4 w-4" />
+              <Button onClick={() => handleToggleSidePanel('invite')} variant="outline">
                 Invite
               </Button>
             </div>
@@ -329,60 +227,67 @@ const VideoCall = () => {
           
           <div className="flex h-[calc(100vh-13rem)] gap-6">
             <div className={`flex-1 ${sidePanel !== 'none' ? 'max-w-[calc(100%-21rem)]' : 'w-full'}`}>
-              <div className="bg-black rounded-xl overflow-hidden shadow-xl aspect-video h-full relative">
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className={`w-full h-full object-cover ${isConnected ? 'block' : 'hidden'}`}
-                />
-                
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`w-full h-full object-cover ${isConnected ? 'hidden' : 'block'}`}
-                />
-                
-                {!isVideoOn && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                    <p className="text-white text-lg">Camera is turned off</p>
+              <div className="grid grid-cols-1 h-full">
+                {/* Main video area - shows remote participant when connected */}
+                <div className="bg-black rounded-xl overflow-hidden shadow-xl relative">
+                  {participants.length > 0 ? (
+                    <div 
+                      ref={(el) => {
+                        if (el) remoteParticipantRefs.current[participants[0].sid] = el;
+                      }}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <p className="text-white text-lg">Waiting for others to join...</p>
+                    </div>
+                  )}
+                  
+                  {/* Status indicator */}
+                  <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
+                    {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
                   </div>
-                )}
-                
-                <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-500' : 'bg-yellow-500'} text-white`}>
-                  {isConnected ? 'Connected' : 'Waiting for connection...'}
-                </div>
-                
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center">
-                  <VideoControls 
-                    isMicOn={isMicOn}
-                    isVideoOn={isVideoOn}
-                    isScreenSharing={isScreenSharing}
-                    onToggleMic={handleToggleMic}
-                    onToggleVideo={handleToggleVideo}
-                    onToggleScreenShare={handleToggleScreenShare}
-                    onEndCall={handleEndCall}
-                    onToggleChat={() => handleToggleSidePanel('chat')}
-                    onToggleParticipants={() => handleToggleSidePanel('participants')}
-                  />
-                </div>
-                
-                {isConnected && isVideoOn && (
-                  <div className="absolute top-4 right-4 w-40 h-32 bg-gray-800 rounded-lg overflow-hidden border border-white/20 shadow-xl">
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover"
+                  
+                  {/* Local video (smaller, positioned at the bottom right) */}
+                  <div className="absolute bottom-4 right-4 w-40 h-32 bg-gray-800 rounded-lg overflow-hidden border border-white/20 shadow-xl">
+                    <div className="w-full h-full">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                      {!isVideoEnabled && (
+                        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                          <p className="text-white text-xs">Camera off</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Video controls */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex justify-center">
+                    <VideoControls 
+                      isMicOn={isMicEnabled}
+                      isVideoOn={isVideoEnabled}
+                      isScreenSharing={false}  // We're not implementing screen sharing in this version
+                      onToggleMic={toggleMicrophone}
+                      onToggleVideo={toggleCamera}
+                      onToggleScreenShare={() => {}}  // Placeholder for future implementation
+                      onEndCall={() => {
+                        disconnect();
+                        navigate('/dashboard');
+                      }}
+                      onToggleChat={() => handleToggleSidePanel('chat')}
+                      onToggleParticipants={() => handleToggleSidePanel('participants')}
                     />
                   </div>
-                )}
+                </div>
               </div>
             </div>
             
+            {/* Side panel */}
             {sidePanel !== 'none' && (
               <div className="w-80 h-full bg-white rounded-xl shadow-lg overflow-hidden flex-shrink-0">
                 {sidePanel === 'chat' && (
@@ -394,7 +299,12 @@ const VideoCall = () => {
                 )}
                 {sidePanel === 'participants' && (
                   <ParticipantsList 
-                    participants={participants}
+                    participants={participants.map(p => ({
+                      id: p.sid,
+                      name: p.identity,
+                      isMuted: false, // We'd need to track this in a real implementation
+                      isHost: false  // We'd need to track this in a real implementation
+                    }))}
                     currentUserId={userId}
                   />
                 )}
@@ -411,11 +321,14 @@ const VideoCall = () => {
             )}
           </div>
           
+          {/* Session info tabs */}
           <div className="mt-6">
             <Tabs defaultValue="info">
               <TabsList>
                 <TabsTrigger value="info">Call Information</TabsTrigger>
-                <TabsTrigger value="participants">Participants ({participants.length})</TabsTrigger>
+                <TabsTrigger value="participants">
+                  Participants ({participants.length + 1})
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="info" className="p-4 bg-white rounded-lg shadow mt-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -450,11 +363,13 @@ const VideoCall = () => {
                     <div className="flex items-center gap-2">
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className={`h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} 
-                          style={{ width: isConnected ? '100%' : '50%' }}
+                          className={`h-2 rounded-full ${isConnected ? 'bg-green-500' : isConnecting ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                          style={{ width: isConnected ? '100%' : isConnecting ? '50%' : '25%' }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-600">{isConnected ? 'Connected' : 'Waiting'}</span>
+                      <span className="text-sm text-gray-600">
+                        {isConnecting ? 'Connecting' : isConnected ? 'Connected' : 'Disconnected'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -462,23 +377,36 @@ const VideoCall = () => {
               
               <TabsContent value="participants" className="p-4 bg-white rounded-lg shadow mt-2">
                 <div className="space-y-2">
-                  {participants.map((participant, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 border-b last:border-0">
+                  {/* Current User */}
+                  <div className="flex items-center justify-between p-2 border-b">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                      <p>{userName} (You)</p>
+                    </div>
+                    <div className="flex items-center">
+                      {!isMicEnabled && (
+                        <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">
+                          Muted
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Remote Participants */}
+                  {participants.map((participant) => (
+                    <div key={participant.sid} className="flex items-center justify-between p-2 border-b last:border-0">
                       <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full ${participant.id === userId ? 'bg-green-500' : 'bg-blue-500'} mr-2`}></div>
-                        <p>{participant.name}</p>
-                        {participant.isHost && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Host</span>
-                        )}
+                        <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
+                        <p>{participant.identity}</p>
                       </div>
                       <div className="flex items-center">
-                        {participant.isMuted && <MicOff className="h-4 w-4 text-gray-500" />}
+                        {/* We'd need to track participant mute state in a real implementation */}
                       </div>
                     </div>
                   ))}
                   
                   {participants.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No participants yet</p>
+                    <p className="text-sm text-gray-500 text-center py-4">No other participants yet</p>
                   )}
                 </div>
               </TabsContent>

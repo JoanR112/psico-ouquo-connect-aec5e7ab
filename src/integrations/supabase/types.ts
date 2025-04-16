@@ -9,7 +9,110 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      invitations: {
+        Row: {
+          created_at: string | null
+          id: string
+          personal_message: string | null
+          recipient_email: string
+          sender_id: string
+          session_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          personal_message?: string | null
+          recipient_email: string
+          sender_id: string
+          session_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          personal_message?: string | null
+          recipient_email?: string
+          sender_id?: string
+          session_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          created_at: string | null
+          duration: number
+          host_id: string
+          id: string
+          scheduled_at: string
+          status: string
+          title: string
+          twilio_room_sid: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number
+          host_id: string
+          id?: string
+          scheduled_at: string
+          status?: string
+          title: string
+          twilio_room_sid?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number
+          host_id?: string
+          id?: string
+          scheduled_at?: string
+          status?: string
+          title?: string
+          twilio_room_sid?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

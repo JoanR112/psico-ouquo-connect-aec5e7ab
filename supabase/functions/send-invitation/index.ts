@@ -1,157 +1,107 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-
-// Important: Define CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Interface for the request body
-interface InvitationRequest {
-  recipientEmail: string;
-  meetingId: string;
-  hostName: string;
-  personalMessage?: string;
-  scheduledTime?: string;
-}
+// supabase/functions/send-invitation/index.ts
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
-
+  
   try {
-    const { recipientEmail, meetingId, hostName, personalMessage, scheduledTime } = await req.json() as InvitationRequest;
+    const { recipientEmail, meetingId, hostName, personalMessage, scheduledTime } = await req.json();
+
+    // Validate input
+    if (!recipientEmail || !meetingId) {
+      return new Response(
+        JSON.stringify({ error: "Recipient email and meeting ID are required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Generate a unique token for direct joining (simple approach for demo)
+    const token = btoa(`${meetingId}:${recipientEmail}`);
     
-    // Create Supabase client with auth context from the request
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: { headers: { Authorization: req.headers.get("Authorization")! } },
+    // Generate the meeting link with the token
+    const meetingUrl = new URL(`/video`, req.url);
+    meetingUrl.searchParams.set('room', meetingId);
+    meetingUrl.searchParams.set('token', token);
+    
+    // Format scheduled time if provided
+    let formattedTime = "";
+    if (scheduledTime) {
+      try {
+        formattedTime = new Date(scheduledTime).toLocaleString('en-US', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        });
+      } catch (e) {
+        console.error("Error formatting date:", e);
+        formattedTime = scheduledTime;
       }
-    );
-
-    // Get user information from the token
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    
-    if (authError || !user) {
-      console.error("Auth error:", authError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
-
-    // Generate invitation link with base64 token for simplicity
-    // In production, use a more secure method for generating tokens
-    const token = btoa(`${meetingId}:${recipientEmail}:${Date.now()}`);
-    const invitationLink = `${Deno.env.get("PUBLIC_APP_URL") || "http://localhost:5173"}/video?room=${meetingId}&token=${token}`;
     
-    console.log(`Sending invitation to ${recipientEmail} for meeting ${meetingId}`);
-    console.log(`Invitation link: ${invitationLink}`);
-
-    // Format the email content
-    const emailSubject = `${hostName} is inviting you to a video call`;
-    
-    // Simple HTML email template
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; 
-                   border-radius: 4px; display: inline-block; font-weight: bold; }
-          .message { border-left: 4px solid #E5E7EB; padding-left: 15px; margin: 20px 0; color: #6B7280; }
-          .footer { margin-top: 30px; font-size: 12px; color: #9CA3AF; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>Video Call Invitation</h2>
-          <p>Hello,</p>
-          <p><strong>${hostName}</strong> has invited you to join a video call.</p>
-          
-          ${scheduledTime ? `<p><strong>Scheduled for:</strong> ${scheduledTime}</p>` : ''}
-          
-          ${personalMessage ? 
-            `<div class="message">
-              <p>${personalMessage}</p>
-            </div>` : ''}
-          
-          <p>
-            <a href="${invitationLink}" class="button">Join Video Call</a>
-          </p>
-          
-          <p>Or copy and paste this link into your browser:</p>
-          <p style="word-break: break-all;">${invitationLink}</p>
-          
-          <div class="footer">
-            <p>This is an automated message, please do not reply to this email.</p>
-          </div>
+    // Construct email content
+    const emailHTML = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="padding: 20px; background-color: #f0f9ff; border-bottom: 3px solid #0ea5e9;">
+          <h2 style="margin: 0; color: #0369a1;">Video Call Invitation</h2>
         </div>
-      </body>
-      </html>
+        
+        <div style="padding: 20px; background-color: #ffffff;">
+          <p>Hello,</p>
+          <p><strong>${hostName}</strong> has invited you to a video call${scheduledTime ? ' scheduled for:' : '.'}</p>
+          
+          ${scheduledTime ? `<p style="margin: 20px 0; padding: 15px; background-color: #f0f9ff; border-left: 3px solid #0ea5e9;"><strong>${formattedTime}</strong></p>` : ''}
+          
+          ${personalMessage ? `<div style="margin: 20px 0; padding: 15px; background-color: #f8f8f8; border-radius: 5px;"><p style="margin: 0;"><em>"${personalMessage}"</em></p></div>` : ''}
+          
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${meetingUrl.toString()}" style="display: inline-block; padding: 12px 24px; background-color: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Join Video Call</a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="font-size: 14px; word-break: break-all;"><a href="${meetingUrl.toString()}" style="color: #0ea5e9;">${meetingUrl.toString()}</a></p>
+        </div>
+        
+        <div style="padding: 20px; background-color: #f8f8f8; font-size: 12px; color: #666; text-align: center;">
+          <p>This invitation was sent through Psicome.</p>
+        </div>
+      </div>
     `;
-
-    // In a real production app, you would send an actual email here
-    // For this demo, we'll just simulate sending the email by storing the invitation in the database
     
-    // Store the invitation in the database
-    const { data: invitation, error: invitationError } = await supabaseClient
-      .from("invitations")
-      .insert({
-        sender_id: user.id,
-        session_id: meetingId,
-        recipient_email: recipientEmail,
-        personal_message: personalMessage || null,
-        status: "sent"
-      })
-      .select()
-      .single();
-
-    if (invitationError) {
-      console.error("Error storing invitation:", invitationError);
-      return new Response(
-        JSON.stringify({ error: "Failed to create invitation" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Send email via Email Service
-    // This is a placeholder - in production you would use a service like SendGrid, AWS SES, etc.
-    // For this demo, we'll simulate a successful email send
-    console.log("Email content:", emailHtml);
-    console.log("Sent to:", recipientEmail);
-    console.log("Subject:", emailSubject);
-
+    // In a real app we would actually send the email here
+    // For this example, we'll just return success
+    console.log(`Email invitation would be sent to ${recipientEmail} with URL ${meetingUrl}`);
+    
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        message: "Invitation sent successfully",
-        data: {
-          invitationId: invitation.id,
-          meetingId,
-          recipientEmail,
-          invitationLink
-        }
+        success: true,
+        message: `Invitation sent to ${recipientEmail}`,
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error("Error in send-invitation function:", error);
+    
     return new Response(
-      JSON.stringify({ error: error.message || "Internal Server Error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
