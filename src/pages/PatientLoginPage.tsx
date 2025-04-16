@@ -43,14 +43,19 @@ const PatientLoginPage = () => {
 
       if (error) throw error;
 
-      // Check if user is a patient
+      // Check if user is a patient using maybeSingle() instead of single()
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
+
+      // Handle case when profile doesn't exist
+      if (!profileData) {
+        throw new Error('User profile not found. Please contact support.');
+      }
 
       if (profileData.role !== 'patient') {
         throw new Error('This login is only for patients. Please use the psychologist login.');
