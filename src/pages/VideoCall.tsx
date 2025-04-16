@@ -28,9 +28,50 @@ const VideoCall = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionDetails, setSessionDetails] = useState<any>(null);
   const [isValidatingToken, setIsValidatingToken] = useState(!!token);
+  const [isTwilioLoaded, setIsTwilioLoaded] = useState(false);
   
   // Remote participant container refs
   const participantContainers = useRef<Record<string, HTMLDivElement>>({});
+  
+  // Load Twilio Video SDK
+  useEffect(() => {
+    const loadTwilioScript = () => {
+      if (window.Twilio) {
+        console.log("Twilio already loaded");
+        setIsTwilioLoaded(true);
+        return;
+      }
+      
+      console.log("Loading Twilio Video script");
+      const script = document.createElement('script');
+      script.src = "https://sdk.twilio.com/js/video/releases/2.26.2/twilio-video.min.js";
+      script.async = true;
+      script.onload = () => {
+        console.log("Twilio Video script loaded successfully");
+        setIsTwilioLoaded(true);
+      };
+      script.onerror = (e) => {
+        console.error("Error loading Twilio Video script:", e);
+        toast({
+          title: "Failed to load video service",
+          description: "Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      };
+      
+      document.body.appendChild(script);
+    };
+    
+    loadTwilioScript();
+    
+    // Clean up
+    return () => {
+      const existingScript = document.querySelector('script[src="https://sdk.twilio.com/js/video/releases/2.26.2/twilio-video.min.js"]');
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript);
+      }
+    };
+  }, [toast]);
   
   // Use our Twilio Video hook
   const {
@@ -153,16 +194,20 @@ const VideoCall = () => {
 
   // Connect to the Twilio room when ready
   useEffect(() => {
-    if (isValidatingToken || userId === 'anonymous') return;
+    if (isValidatingToken || userId === 'anonymous' || !isTwilioLoaded) {
+      console.log("Not ready to connect yet:", { isValidatingToken, userId, isTwilioLoaded });
+      return;
+    }
     
     // Connect to the Twilio room
+    console.log("Ready to connect to Twilio room");
     connect();
     
     return () => {
       // Disconnect when component unmounts
       disconnect();
     };
-  }, [isValidatingToken, userId, connect, disconnect]);
+  }, [isValidatingToken, userId, isTwilioLoaded, connect, disconnect]);
 
   const handleSendChatMessage = (content: string) => {
     const newMessage = {

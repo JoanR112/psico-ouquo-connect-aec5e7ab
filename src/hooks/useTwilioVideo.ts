@@ -63,6 +63,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
   // Get the Twilio Video token from our Edge Function
   const getVideoToken = useCallback(async () => {
     try {
+      console.log("Requesting Twilio token for:", identity, "in room:", roomId);
       const { data, error } = await supabase.functions.invoke("twilio-token", {
         body: {
           roomName: roomId,
@@ -70,7 +71,12 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase function error:", error);
+        throw error;
+      }
+      
+      console.log("Received token data:", { ...data, token: "REDACTED" });
       return data.token;
     } catch (error) {
       console.error("Error getting Twilio token:", error);
@@ -96,10 +102,13 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       localParticipant.videoTracks.forEach((publication) => {
         if (publication.isSubscribed && publication.track) {
           // Pass HTMLVideoElement as argument to attach
-          const videoElement = publication.track.attach(localVideoRef.current!);
-          videoElement.style.width = '100%';
-          videoElement.style.height = '100%';
-          videoElement.style.objectFit = 'cover';
+          const videoElement = localVideoRef.current;
+          if (videoElement) {
+            publication.track.attach(videoElement);
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.objectFit = 'cover';
+          }
         }
       });
     } catch (error) {
@@ -121,6 +130,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       if (publication.isSubscribed && publication.track) {
         // Create a new HTML video element for attachment
         const videoElement = document.createElement('video');
+        // Pass the created element to attach
         publication.track.attach(videoElement);
         videoElement.style.width = '100%';
         videoElement.style.height = '100%';
@@ -134,6 +144,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       if (publication.isSubscribed && publication.track) {
         // Create a new HTML audio element for attachment
         const audioElement = document.createElement('audio');
+        // Pass the created element to attach
         publication.track.attach(audioElement);
         audioElement.style.display = 'none'; // Hide audio elements
         container.appendChild(audioElement);
@@ -145,8 +156,20 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
   const connect = useCallback(async () => {
     if (!roomId || isConnecting || room) return;
     
+    // Check if Twilio Video library is loaded
+    if (!window.Twilio) {
+      console.error("Twilio Video library not loaded");
+      toast({
+        title: "Twilio library not loaded",
+        description: "The video service library could not be loaded. Please refresh the page.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const Video = window.Twilio?.Video;
     if (!Video) {
+      console.error("Twilio.Video is not available");
       toast({
         title: "Twilio library not loaded",
         description: "The video service library could not be loaded. Please refresh the page.",
@@ -158,10 +181,14 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
     setIsConnecting(true);
     
     try {
+      console.log("Starting connection process...");
       // Get a token from our Edge Function
       const token = await getVideoToken();
-      if (!token) throw new Error("Failed to get access token");
+      if (!token) {
+        throw new Error("Failed to get access token");
+      }
       
+      console.log("Connecting to Twilio room:", roomId);
       // Connect to the Twilio Room
       const twilioRoom = await Video.connect(token, {
         name: roomId,
@@ -170,6 +197,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
         networkQuality: { local: 1, remote: 1 }
       });
       
+      console.log("Connected to room:", twilioRoom.name);
       setRoom(twilioRoom);
       setIsConnected(true);
       
@@ -182,6 +210,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       
       // Set up event listeners for room events
       twilioRoom.on('participantConnected', participant => {
+        console.log("Participant connected:", participant.identity);
         setParticipants(prevParticipants => [...prevParticipants, participant]);
         
         toast({
@@ -191,6 +220,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       });
       
       twilioRoom.on('participantDisconnected', participant => {
+        console.log("Participant disconnected:", participant.identity);
         setParticipants(prevParticipants => 
           prevParticipants.filter(p => p.sid !== participant.sid)
         );
@@ -202,6 +232,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
       });
       
       twilioRoom.on('disconnected', () => {
+        console.log("Room disconnected");
         setIsConnected(false);
         setRoom(null);
         
@@ -228,6 +259,7 @@ export const useTwilioVideo = ({ roomId, identity }: UseTwilioVideoProps) => {
   // Disconnect from the Twilio room
   const disconnect = useCallback(() => {
     if (room) {
+      console.log("Disconnecting from room");
       room.disconnect();
       setRoom(null);
       setIsConnected(false);
